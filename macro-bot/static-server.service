@@ -1,0 +1,18 @@
+[Unit]
+Description=Macro Bot Static Server (SPA + API on 8000)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/www/wwwroot/macro-bot
+EnvironmentFile=/www/wwwroot/macro-bot/.env
+Environment="STATIC_SERVER_PORT=8000"
+Environment="APP_CORS_ORIGINS=https://panpan.ink,https://www.panpan.ink,https://localhost:3000"
+ExecStart=/www/wwwroot/.venv311/bin/python /www/wwwroot/macro-bot/static_server.py
+Restart=always
+RestartSec=5
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
