@@ -43,6 +43,8 @@ load_dotenv('/www/wwwroot/macro-bot/.env')
 # ========== 配置（全部从 env 读取） ==========
 FEISHU_WEBHOOK: str = os.getenv("FEISHU_WEBHOOK", "")
 FEISHU_SIGN_SECRET: str = os.getenv("FEISHU_SIGN_SECRET", "")
+# 飞书加签时间戳单位：ms（当前实现）/ s（部分文档）。可通过 FEISHU_SIGN_TIMESTAMP_UNIT=ms|s 切换。
+FEISHU_SIGN_TS_UNIT = os.getenv("FEISHU_SIGN_TIMESTAMP_UNIT", "ms")
 BRIEFING_OUTPUT_DIR: str = os.getenv("BRIEFING_OUTPUT_DIR", "/www/wwwroot/macro-bot/briefings")
 
 
@@ -496,7 +498,10 @@ def send_feishu(
     }
     # T6-deploy: 飞书签名校验 (在 webhook 启用了"加签"时)
     if FEISHU_SIGN_SECRET:
-        timestamp = str(int(time.time() * 1000))  # 飞书要毫秒, 不是秒
+        timestamp = (
+            str(int(time.time())) if FEISHU_SIGN_TS_UNIT == "s"
+            else str(int(time.time() * 1000))
+        )
         sign = _feishu_sign(timestamp, FEISHU_SIGN_SECRET)
         payload["timestamp"] = timestamp
         payload["sign"] = sign

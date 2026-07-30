@@ -11,7 +11,7 @@ tweets_per_stock: 15
 xai:
   api_key: "YOUR_XAI_API_KEY_HERE"
   api_url: "https://api.x.ai/v1/responses"
-  model: grok-4.5
+  model: grok-4-1-fast-non-reasoning
 
 xai_timeout: 60
 xai_retries: 2

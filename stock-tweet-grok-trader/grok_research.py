@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import asyncio
+import re
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
@@ -147,7 +148,7 @@ Use this data in your analysis."""
 
         # Create streaming chat completion
         stream = await client.chat.completions.create(
-            model="grok-2-1212",
+            model=MODEL_NAME,
             messages=[
                 {
                     "role": "system",
@@ -178,11 +179,8 @@ Use this data in your analysis."""
                     )
 
         # Extract recommendation from report
-        recommendation = "NOOP"
-        if "RECOMMENDATION: YES" in full_response.upper():
-            recommendation = "YES"
-        elif "RECOMMENDATION: NO" in full_response.upper():
-            recommendation = "NO"
+        _rec = re.search(r"RECOMMENDATION:\s*(YES|NO|NOOP)\b", full_response, re.I)
+        recommendation = _rec.group(1).upper() if _rec else "NOOP"
 
         # Send completion with recommendation and citations
         await websocket.send_json(
@@ -243,7 +241,7 @@ async def research_followup(websocket, messages: list[dict]):
 
         # Create streaming chat completion
         stream = await client.chat.completions.create(
-            model="grok-2-1212",
+            model=MODEL_NAME,
             messages=conversation,
             stream=True,
             temperature=0.7,

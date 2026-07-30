@@ -21,6 +21,34 @@ BACKGROUND_DAYS = 30
 A_SHARE_EXCHANGES = {"SS", "SZ", "BJ", "SH"}
 
 
+class NewsItems(list):
+    """Formatted news items carrying the number verified as fresh."""
+
+    fresh_count: int = 0
+
+
+TICKER_MARKET_ALIASES = {
+    # tagger/watchlist 后缀 -> holdings 后缀（以及反向）
+    "SS": "CH", "SH": "CH", "SZ": "CH", "BJ": "CH",
+    "T": "JP", "HK": "HK", "DE": "GR", "PA": "FR",
+    "SW": "SW", "US": "US", "L": "UK",
+}
+
+
+def _ticker_equivalents(code: str) -> set:
+    """给定一个裸代码（如 '688169'）或带后缀的 ticker，返回所有可能的等效 ticker 集合。"""
+    if not code:
+        return set()
+    base = code.split(".")[0]
+    suffix = code.split(".")[1].upper() if "." in code else ""
+    equiv = {base}
+    for sfx, mkt in TICKER_MARKET_ALIASES.items():
+        if sfx == suffix or mkt == suffix or not suffix:
+            equiv.add(f"{base}.{sfx}")
+            equiv.add(f"{base}.{mkt}")
+    return {x.upper() for x in equiv}
+
+
 def _load_company_keywords() -> Dict[str, List[str]]:
     """Load company keyword aliases from watchlist.json for fuzzy matching."""
     if not os.path.exists(WATCHLIST_PATH):
@@ -78,17 +106,18 @@ def _match_score(article: Dict[str, Any], holding: Dict[str, Any]) -> int:
     ticker = (holding.get("ticker") or "").upper()
     exchange = (holding.get("exchange") or "").upper()
     full_ticker = f"{ticker}.{exchange}" if exchange else ticker
+    ticker_equiv = _ticker_equivalents(full_ticker)
     short_name = (holding.get("short_name") or "").strip()
 
     score = 0
     article_hits = article.get("hits", {})
     for hit_ticker in article_hits.get("tickers", []):
         hit_ticker = hit_ticker.upper()
-        if hit_ticker == full_ticker or hit_ticker.startswith(ticker + "."):
+        if ticker_equiv & _ticker_equivalents(hit_ticker):
             score += 10
     for company_hit in article_hits.get("companies", []):
         company_hit = company_hit.upper()
-        if company_hit == full_ticker or company_hit.startswith(ticker + "."):
+        if ticker_equiv & _ticker_equivalents(company_hit):
             score += 5
 
     if score > 0:
@@ -130,6 +159,11 @@ def _parse_date(s: str) -> Optional[datetime]:
     """Parse a date string in various formats."""
     if not s or not isinstance(s, str):
         return None
+    try:
+        dt = datetime.fromisoformat(s)
+        return dt.replace(tzinfo=None) if dt.tzinfo else dt
+    except ValueError:
+        pass
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"):
         try:
             return datetime.strptime(s, fmt)
@@ -195,6 +229,7 @@ def fetch_news_for_holding(
     ticker = (holding.get("ticker") or "").upper()
     exchange = (holding.get("exchange") or "").upper()
     full_ticker = f"{ticker}.{exchange}" if exchange else ticker
+    ticker_equiv = _ticker_equivalents(full_ticker)
 
     candidates: List[Dict[str, Any]] = []
 
@@ -202,8 +237,8 @@ def fetch_news_for_holding(
     tags_data = _load_tags_file(date)
     if tags_data is not None:
         for tag in tags_data.get("tags", []):
-            companies = [c.upper() for c in tag.get("companies", [])]
-            if ticker in companies or full_ticker in companies:
+            equiv_set = set().union(*(_ticker_equivalents(c) for c in tag.get("companies", [])))
+            if ticker_equiv & equiv_set:
                 candidates.append({
                     "title": tag.get("title", ""),
                     "url": tag.get("url", ""),
@@ -261,9 +296,10 @@ def fetch_news_for_holding(
 
     fresh, background = _split_by_recency(all_candidates, hours=hours_window)
 
-    formatted: List[str] = []
+    formatted: List[str] = NewsItems()
     for a in fresh[:max_results]:
         formatted.append(_format_article(a))
+    formatted.fresh_count = len(formatted)
     remaining = max_results - len(formatted)
     if remaining > 0 and background:
         for a in background[:remaining]:
@@ -280,9 +316,13 @@ def format_news_for_prompt(news_items: List[str]) -> str:
     """
     if not news_items:
         return "暂无新闻。"
-    focus_count = min(3, len(news_items))
+    fresh_count = getattr(news_items, "fresh_count", len(news_items))
+    focus_count = min(3, fresh_count or len(news_items))
     lines = []
-    lines.append("【今日焦点（过去24小时，请重点分析）】")
+    if fresh_count:
+        lines.append("【今日焦点（过去24小时，请重点分析）】")
+    else:
+        lines.append("【近期相关报道（24h 内未抓到，仅供参考）】")
     for i, t in enumerate(news_items[:focus_count], 1):
         lines.append(f"{i}. {t}")
     if len(news_items) > focus_count:

@@ -79,8 +79,17 @@ def build_prompt(ticker_cfg, count):
 
 
 def call_xai_search(prompt, config, timeout=45, retries=1):
+    allowed_models = {
+        'grok-4-1-fast-non-reasoning', 'grok-4-1-fast-reasoning',
+        'grok-4-fast-reasoning', 'grok-4-fast-non-reasoning',
+    }
+    model = config['xai']['model']
+    if model not in allowed_models:
+        # 如 xAI 控制台确认 grok-4.5 有效后可从白名单移除。
+        print(f"warning: unsupported xAI model {model!r}; falling back", file=sys.stderr)
+        model = 'grok-4-1-fast-non-reasoning'
     payload = {
-        'model': config['xai']['model'],
+        'model': model,
         'input': prompt,
         'tools': [{'type': 'x_search'}],
         'tool_choice': 'required',
