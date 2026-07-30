@@ -1,0 +1,85 @@
+[
+  {
+    "id": "cnbc-top-news",
+    "name": "CNBC Top News",
+    "type": "rss",
+    "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+    "category": "finance",
+    "lang": "en",
+    "enabled": true
+  },
+  {
+    "id": "techcrunch",
+    "name": "TechCrunch",
+    "type": "rss",
+    "url": "https://techcrunch.com/feed/",
+    "category": "tech",
+    "lang": "en",
+    "enabled": true
+  },
+  {
+    "id": "36kr",
+    "name": "36氪",
+    "type": "rss",
+    "url": "https://36kr.com/feed",
+    "category": "tech",
+    "lang": "zh",
+    "enabled": true
+  },
+  {
+    "id": "solidot",
+    "name": "Solidot",
+    "type": "rss",
+    "url": "https://www.solidot.org/index.rss",
+    "category": "tech",
+    "lang": "zh",
+    "enabled": true
+  },
+  {
+    "id": "hackernews",
+    "name": "Hacker News",
+    "type": "rss",
+    "url": "https://news.ycombinator.com/rss",
+    "category": "tech",
+    "lang": "en",
+    "enabled": true
+  },
+  {
+    "id": "reuters-business",
+    "name": "Reuters Business",
+    "type": "rss",
+    "url": "https://www.reutersagency.com/feed/?best-sectors=economy&post_type=reuters-best",
+    "category": "finance",
+    "lang": "en",
+    "enabled": false,
+    "notes": "URL currently returns 404"
+  },
+  {
+    "id": "sina-finance-yc",
+    "name": "新浪财经要闻",
+    "type": "rss",
+    "url": "https://rss.sina.com.cn/finance/rollnews.xml",
+    "category": "finance",
+    "lang": "zh",
+    "enabled": true
+  },
+  {
+    "id": "nytimes-business",
+    "name": "NYT Business",
+    "type": "rss",
+    "url": "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
+    "category": "finance",
+    "lang": "en",
+    "enabled": true
+  },
+  {
+    "id": "ft-chinese",
+    "name": "FT中文网",
+    "type": "rss",
+    "url": "https://www.ftchinese.com/rss/news",
+    "category": "finance",
+    "lang": "zh",
+    "enabled": false,
+    "notes": "国内访问不稳定，可手动开启"
+  }
+]

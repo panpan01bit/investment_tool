@@ -1,0 +1,17 @@
+holdings:
+  - {display_name: Apple Inc., ticker: AAPL}
+  - {display_name: Alphabet, ticker: GOOGL}
+  - {display_name: Microsoft, ticker: MSFT}
+  - {display_name: NVIDIA, ticker: NVDA}
+  - {display_name: Tesla, ticker: TSLA}
+
+min_engagement_score: 0
+tweets_per_stock: 15
+
+xai:
+  api_key: "YOUR_XAI_API_KEY_HERE"
+  api_url: "https://api.x.ai/v1/responses"
+  model: grok-4.5
+
+xai_timeout: 60
+xai_retries: 2

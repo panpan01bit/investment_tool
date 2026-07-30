@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+
+# Output and local data (do not track)
+analysis_results.csv
+data/
+client/node_modules/
+client/dist/

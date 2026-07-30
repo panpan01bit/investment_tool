@@ -1,0 +1,5 @@
+# Add this to root crontab (crontab -e)
+# Runs daily at 07:30, so hits/YYYY-MM-DD.json is ready before bot.py at 08:00
+
+30 7 * * * cd /www/wwwroot/macro-bot/daily-news-fetcher && /usr/bin/python3 fetch.py &>> /www/wwwroot/macro-bot/daily-news-fetcher/logs/cron.log 2>&1 && /usr/bin/python3.8 akshare_fetcher.py &>> /www/wwwroot/macro-bot/daily-news-fetcher/logs/cron.log 2>&1
+0 8 * * * cd /www/wwwroot/macro-bot && /usr/bin/python3 bot.py &>> /www/wwwroot/macro-bot/run.log 2>&1

@@ -1,0 +1,13 @@
+services:
+  finance-mcp:
+    build: .
+    container_name: finance-mcp
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          memory: 512M
