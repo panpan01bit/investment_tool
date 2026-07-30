@@ -15,8 +15,7 @@ app = original_app_module.app
 # 添加静态文件支持（用于 spa fallback）
 app.static_folder = '/www/wwwroot/guanlan'
 app.static_url_path = ''
-CORS(app, resources={r"/api/*": {"origins": CORS_ORIGINS}}, supports_credentials=True)
-
+# CORS is already configured once in app.py; do not double-register here.
 
 # 把 catch_all 路由接入（app.py 里也有一个 "/" index，优先用这里的 spa fallback）
 try:

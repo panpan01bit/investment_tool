@@ -25,7 +25,10 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+# Restrict CORS to explicit origins. Static_server.py reuses this app, so we
+# configure CORS here once and avoid double-registration in static_server.
+CORS_ORIGINS = os.getenv("APP_CORS_ORIGINS", "https://panpan.ink").split(",")
+CORS(app, resources={r"/api/*": {"origins": CORS_ORIGINS, "supports_credentials": True}})
 
 # ===== Config =====
 BRIEFINGS_DIR = os.getenv("BRIEFING_OUTPUT_DIR", "/www/wwwroot/macro-bot/briefings")
