@@ -160,10 +160,13 @@ def _call_tavily_search(query):
 
 @app.route("/api/briefings", methods=["GET"])
 def list_briefings():
-    """List all available briefing dates."""
+    """List all available briefing dates (YYYY-MM-DD.json only)."""
     try:
-        files = sorted([f.replace(".json", "") for f in os.listdir(BRIEFINGS_DIR)
-                        if f.endswith(".json")], reverse=True)
+        files = sorted(
+            [f.replace(".json", "") for f in os.listdir(BRIEFINGS_DIR)
+             if f.endswith(".json") and _valid_date_str(f.replace(".json", ""))],
+            reverse=True,
+        )
         return jsonify({"dates": files, "count": len(files)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
