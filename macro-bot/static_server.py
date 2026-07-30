@@ -14,11 +14,10 @@ CORS_ORIGINS = os.getenv('STATIC_CORS_ORIGINS', 'https://panpan.ink').split(',')
 # 用 app.py 里的 Flask app 作为基底，自动带上所有 /api/* 路由（包括 auth）
 app = original_app_module.app
 # 添加静态文件支持（用于 spa fallback）
-app.static_folder = '/www/wwwroot/guanlan'
+STATIC_DIR = os.getenv('STATIC_DIR', '/www/wwwroot/guanlan')
+app.static_folder = STATIC_DIR
 app.static_url_path = ''
 # CORS is already configured once in app.py; do not double-register here.
-
-STATIC_DIR = '/www/wwwroot/guanlan'
 
 def spa_fallback(path):
     # API 路由更具体，这里不应匹配到 /api/*；保留防御性 404
