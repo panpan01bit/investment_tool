@@ -28,7 +28,7 @@ def get_reddit_data(slug, max_results=10):
         url = f"{base_url}/relevance.json"
         params['t'] = 'all'
     try:
-        resp = requests.get(url, headers=headers, params=params)
+        resp = requests.get(url, headers=headers, params=params, timeout=15)
         data = resp.json()
         posts_data = data.get('data', {}).get('children', [])
         links = [f"https://reddit.com{item['data'].get('permalink')}" for item in posts_data if 'data' in item and 'permalink' in item['data']]
@@ -43,7 +43,7 @@ def get_reuter_data(slug, max_results=10):
     encoded_query = urllib.parse.quote(full_query)
     url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
     try:
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=15)
         root = ET.fromstring(resp.content)
         channel = root.find("channel")
         items = channel.findall("item") if channel is not None else []
@@ -83,7 +83,7 @@ def get_x_data(slug, max_results=10, verbose=False):
     try:
         if verbose:
             print(f"DEBUG: X API query={query!r}, max_results={params['max_results']}")
-        resp = requests.get(url, headers=headers, params=params)
+        resp = requests.get(url, headers=headers, params=params, timeout=15)
         if verbose:
             print(f"DEBUG: X API status={resp.status_code}")
         if resp.status_code != 200:

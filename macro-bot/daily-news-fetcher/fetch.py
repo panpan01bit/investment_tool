@@ -20,8 +20,15 @@ from typing import Any, Dict, List, Optional, Set
 from urllib import request
 from xml.etree import ElementTree as ET
 
-# Allow unverified TLS for some badly configured RSS hosts
-ssl._create_default_https_context = ssl._create_unverified_context
+# Default TLS verification is ON. Individual sources can opt out via verify_ssl:false.
+
+def _create_ssl_context(verify: bool = True) -> ssl.SSLContext:
+    ctx = ssl.create_default_context()
+    if not verify:
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(BASE_DIR, "news")
@@ -63,7 +70,8 @@ def strip_html(html: str) -> str:
     return s.strip()
 
 
-def fetch_url(url: str) -> str:
+def fetch_url(url: str, source: Optional[Dict[str, Any]] = None) -> str:
+    verify = source.get("verify_ssl", True) if source else True
     req = request.Request(
         url,
         headers={
@@ -71,7 +79,8 @@ def fetch_url(url: str) -> str:
             "Accept": "application/rss+xml,application/xml,text/xml,*/*",
         },
     )
-    with request.urlopen(req, timeout=FETCH_TIMEOUT_SEC) as resp:
+    ctx = _create_ssl_context(verify=verify)
+    with request.urlopen(req, timeout=FETCH_TIMEOUT_SEC, context=ctx) as resp:
         data = resp.read()
     # Try utf-8 first; fall back to common Chinese encodings
     for enc in ("utf-8", "gb18030", "gbk", "big5"):
@@ -232,7 +241,7 @@ def main() -> None:
 
     for source in sources:
         try:
-            xml = fetch_url(source["url"])
+            xml = fetch_url(source["url"], source=source)
             items = parse_rss(xml)
             articles = [
                 {

@@ -34,6 +34,33 @@ KIMI_API_KEY = os.getenv("KIMI_API_KEY", "")
 KIMI_BASE_URL = os.getenv("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 
+# ===== Helpers =====
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _valid_date_str(date: str) -> bool:
+    """Strict YYYY-MM-DD validation (rejects 2026-99-99 etc.)."""
+    if not _DATE_RE.match(date):
+        return False
+    try:
+        datetime.strptime(date, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+
+def _safe_briefing_path(date):
+    """Validate date format and return a path guaranteed to be inside BRIEFINGS_DIR."""
+    if not _valid_date_str(date):
+        return None
+    path = os.path.join(BRIEFINGS_DIR, "%s.json" % date)
+    real = os.path.realpath(path)
+    real_dir = os.path.realpath(BRIEFINGS_DIR)
+    if not real.startswith(real_dir + os.sep):
+        return None
+    return real
+
+
 # ===== DB Setup =====
 def _init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -141,7 +168,9 @@ def list_briefings():
 @app.route("/api/briefings/<date>", methods=["GET"])
 def get_briefing(date):
     """Get briefing JSON by date."""
-    path = os.path.join(BRIEFINGS_DIR, "%s.json" % date)
+    path = _safe_briefing_path(date)
+    if path is None:
+        return jsonify({"error": "invalid date"}), 400
     if not os.path.exists(path):
         return jsonify({"error": "Not found"}), 404
     try:
@@ -201,8 +230,8 @@ def chat():
 
     # Load briefing as context
     briefing_text = ""
-    briefing_path = os.path.join(BRIEFINGS_DIR, "%s.json" % date)
-    if os.path.exists(briefing_path):
+    briefing_path = _safe_briefing_path(date)
+    if briefing_path and os.path.exists(briefing_path):
         try:
             with open(briefing_path, "r", encoding="utf-8") as f:
                 b = json.load(f)
@@ -598,9 +627,13 @@ INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "")
 
 def _require_internal_secret():
     """Worker 回源时必须带 X-Internal-Secret，防止 origin 域名被嗅探。"""
-    if not INTERNAL_SECRET:
+    if INTERNAL_SECRET == "DISABLED":
         return True
+    if not INTERNAL_SECRET:
+        return False
     secret = request.headers.get("X-Internal-Secret", "")
+    if not secret:
+        return False
     return secrets.compare_digest(secret, INTERNAL_SECRET)
 
 

@@ -217,7 +217,7 @@ def fetch_posts(keywords=None,
             url = f"{base_url}/{sort}.json"
             params['t'] = time_filter
 
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, headers=headers, params=params, timeout=15)
         
         if response.status_code != 200:
             console.print(f"[bold red]Error {response.status_code}:[/bold red] {response.text}")
@@ -231,7 +231,7 @@ def fetch_posts(keywords=None,
             console.print("[bold yellow]No results with AND logic. Retrying with OR logic...[/bold yellow]")
             query = build_query(keywords, "OR", None)
             params['q'] = query
-            response = requests.get(url, headers=headers, params=params)
+            response = requests.get(url, headers=headers, params=params, timeout=15)
             if response.status_code == 200:
                 data = response.json()
                 posts_data = data.get('data', {}).get('children', [])
@@ -242,7 +242,7 @@ def fetch_posts(keywords=None,
              simple_keywords = keywords[:2]
              query = build_query(simple_keywords, "OR", None)
              params['q'] = query
-             response = requests.get(url, headers=headers, params=params)
+             response = requests.get(url, headers=headers, params=params, timeout=15)
              if response.status_code == 200:
                 data = response.json()
                 posts_data = data.get('data', {}).get('children', [])

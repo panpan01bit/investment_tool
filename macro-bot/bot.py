@@ -30,6 +30,7 @@ import hmac
 import hashlib
 import base64
 import json
+import sys
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -39,6 +40,24 @@ from dotenv import load_dotenv
 
 # 顶部加载 .env
 load_dotenv('/www/wwwroot/macro-bot/.env')
+
+
+# ========== 单例锁（防止 cron 重叠运行） ==========
+def _acquire_singleton_lock(lock_path: str = "/tmp/macro-bot-bot.lock") -> None:
+    """若另一个实例仍在运行，则退出当前进程。"""
+    import fcntl
+    try:
+        fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o644)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except (BlockingIOError, OSError):
+        print(f"[WARN] Another macro-bot instance is running (lock {lock_path}). Exiting.", file=sys.stderr)
+        sys.exit(0)
+    # 保持 fd 打开以持有锁；写入当前 PID 便于排查
+    os.truncate(fd, 0)
+    os.write(fd, str(os.getpid()).encode())
+
+
+_acquire_singleton_lock()
 
 # ========== 配置（全部从 env 读取） ==========
 FEISHU_WEBHOOK: str = os.getenv("FEISHU_WEBHOOK", "")

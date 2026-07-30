@@ -4,7 +4,7 @@ import ast
 
 def fetch_event_market_clobs(event_slug: str):
     url = f"https://gamma-api.polymarket.com/events?slug={event_slug}"
-    response = requests.get(url).json()[0]
+    response = requests.get(url, timeout=15).json()[0]
     mapping = {}
 
     for market in response["markets"]:
@@ -16,7 +16,7 @@ def fetch_event_market_clobs(event_slug: str):
 
 def fetch_event_market_slugs(event_slug: str):
     url = f"https://gamma-api.polymarket.com/events?slug={event_slug}"
-    response = requests.get(url).json()[0]
+    response = requests.get(url, timeout=15).json()[0]
     slugs = []
 
     for market in response["markets"]:
@@ -27,7 +27,7 @@ def fetch_event_market_slugs(event_slug: str):
 
 def fetch_events_all():
     url = "https://gamma-api.polymarket.com/events?closed=false"
-    response = requests.get(url).json()
+    response = requests.get(url, timeout=15).json()
     slugs = []
     for event in response:
         slugs.append(event["slug"])

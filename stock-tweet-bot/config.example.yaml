@@ -9,7 +9,8 @@ min_engagement_score: 0
 tweets_per_stock: 15
 
 xai:
-  api_key: "YOUR_XAI_API_KEY_HERE"
+  # 强烈建议通过环境变量 XAI_API_KEY 注入，不在文件中保存真实 key
+  api_key: "${XAI_API_KEY}"
   api_url: "https://api.x.ai/v1/responses"
   model: grok-4-1-fast-non-reasoning
 

@@ -140,7 +140,7 @@ def fetch_articles(keywords=None, limit=10, start_time=None, end_time=None, logi
     console.print(f"[bold yellow]Searching Reuters for:[/bold yellow] '{query_str}'...\n")
     
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=15)
         if response.status_code != 200:
             console.print(f"[bold red]Error {response.status_code}:[/bold red] Failed to fetch RSS feed.")
             return
