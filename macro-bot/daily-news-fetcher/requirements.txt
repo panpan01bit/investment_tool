@@ -1,0 +1,6 @@
+# Auto-generated requirements for macro-bot/daily-news-fetcher
+# Source: 3 Python files; local/stdlib modules removed.
+# Note: akshare is imported by akshare_fetcher.py. The local directory 'akshare'
+# shadows the package; rename it to e.g. akshare_data/ to avoid import issues.
+akshare
+requests

@@ -1,0 +1,15 @@
+# Auto-generated requirements for stock-tweet-grok-trader
+# Source: 29 Python files; local/stdlib modules removed.
+beautifulsoup4
+python-dotenv
+eth-account
+fastapi
+openai
+py-clob-client
+pydantic
+requests
+rich
+tweepy
+uvicorn
+websocket-client
+xai-sdk
