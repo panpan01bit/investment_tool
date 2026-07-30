@@ -159,8 +159,11 @@ def _parse_date(s: str) -> Optional[datetime]:
     """Parse a date string in various formats."""
     if not s or not isinstance(s, str):
         return None
+    # Python 3.9's fromisoformat does NOT accept the trailing 'Z' (UTC) suffix.
+    # Normalize 'Z' -> '+00:00' before delegating; this also catches whitespace-padded ISO.
+    iso_candidate = s.strip().replace("Z", "+00:00") if "Z" in s else s.strip()
     try:
-        dt = datetime.fromisoformat(s)
+        dt = datetime.fromisoformat(iso_candidate)
         return dt.replace(tzinfo=None) if dt.tzinfo else dt
     except ValueError:
         pass

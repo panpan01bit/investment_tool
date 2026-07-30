@@ -12,11 +12,11 @@ const requestContext = new AsyncLocalStorage<RequestContext>();
 
 export function runWithRequestContext<T>(ctx: Partial<RequestContext>, fn: () => Promise<T>): Promise<T> {
   return requestContext.run({
-    tushareToken: ctx.tushareToken,
-    coingeckoApiKey: ctx.coingeckoApiKey,
-    coingeckoProApiKey: ctx.coingeckoProApiKey,
-    coingeckoDemoApiKey: ctx.coingeckoDemoApiKey
-  }, fn);
+      tushareToken: ctx.tushareToken,
+      coingeckoApiKey: ctx.coingeckoApiKey,
+      coingeckoProApiKey: ctx.coingeckoProApiKey,
+      coingeckoDemoApiKey: ctx.coingeckoDemoApiKey
+    }, fn);
 }
 
 export function getRequestToken(): string | undefined {
