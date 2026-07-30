@@ -296,7 +296,7 @@ def fetch_news_for_holding(
 
     fresh, background = _split_by_recency(all_candidates, hours=hours_window)
 
-    formatted: List[str] = NewsItems()
+    formatted: NewsItems = NewsItems()  # type: ignore[assignment]
     for a in fresh[:max_results]:
         formatted.append(_format_article(a))
     formatted.fresh_count = len(formatted)

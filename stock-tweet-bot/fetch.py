@@ -2,13 +2,19 @@ import json, os, sys, yaml, re
 from datetime import datetime, timezone
 import requests
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.yaml')
+CONFIG_PATH = os.getenv('STOCK_TWEET_BOT_CONFIG',
+                        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.yaml'))
 WATCHLIST_PATH = '/www/wwwroot/macro-bot/daily-news-fetcher/watchlist.json'
 
 
 def load_config(path):
     with open(path, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
+        cfg = yaml.safe_load(f)
+    # Prefer environment variable for API key so secrets stay out of files.
+    env_key = os.getenv('XAI_API_KEY')
+    if env_key and cfg.get('xai'):
+        cfg['xai']['api_key'] = env_key
+    return cfg
 
 
 def load_watchlist(path):
@@ -79,15 +85,19 @@ def build_prompt(ticker_cfg, count):
 
 
 def call_xai_search(prompt, config, timeout=45, retries=1):
-    allowed_models = {
+    # Warn-only check: xAI 控制台如已确认其他型号有效，从白名单移除即可。
+    # 仅警告不强制 fallback，避免未来新增的 grok-4-x 型号被无声重定向。
+    _known_models = {
         'grok-4-1-fast-non-reasoning', 'grok-4-1-fast-reasoning',
         'grok-4-fast-reasoning', 'grok-4-fast-non-reasoning',
     }
     model = config['xai']['model']
-    if model not in allowed_models:
-        # 如 xAI 控制台确认 grok-4.5 有效后可从白名单移除。
-        print(f"warning: unsupported xAI model {model!r}; falling back", file=sys.stderr)
-        model = 'grok-4-1-fast-non-reasoning'
+    if model not in _known_models:
+        print(
+            f"warning: xAI model {model!r} not in known set; passing through as-is. "
+            f"如 xAI 返回 400，请把新模型名加入 _known_models 或检查控制台。",
+            file=sys.stderr,
+        )
     payload = {
         'model': model,
         'input': prompt,
