@@ -487,6 +487,13 @@ def _auth_get_user_by_token(token):
 
 
 def _auth_require():
+    # 完全关闭鉴权的公开模式（用于移除登录页）
+    if os.getenv("AUTH_DISABLED") == "1":
+        return {
+            "token": "bypass",
+            "user": {"id": 0, "username": "public", "role": "admin"},
+        }
+
     token = (
         request.headers.get("X-Auth-Token", "")
         or request.cookies.get("auth_token", "")
