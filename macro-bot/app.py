@@ -23,6 +23,7 @@ from datetime import datetime
 # FastAPI not available on Python 3.6, use Flask instead
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from lark_interviews import get_interviews, parse_interview
 
 app = Flask(__name__)
 # Restrict CORS to explicit origins. Static_server.py reuses this app, so we
@@ -762,3 +763,48 @@ def tingtao_chat():
         "entry": entry,
         "chat_history": data["chat_history"],
     })
+
+# ===== Lark 专家数据库路由 =====
+
+@app.route("/api/interviews", methods=["GET"])
+def api_interviews():
+    try:
+        limit = request.args.get("limit", 500, type=int)
+        if limit < 1 or limit > 2000:
+            limit = 500
+        records = get_interviews(limit)
+        return jsonify({"data": records})
+    except Exception as e:
+        print("[api_interviews] error:", e)
+        return jsonify({"error": str(e), "data": []}), 500
+
+
+@app.route("/api/parse", methods=["POST"])
+def api_parse():
+    try:
+        body = request.get_json(silent=True) or {}
+        content = body.get("content", "").strip()
+        title = body.get("title", "").strip()
+        if not content or not title:
+            return jsonify({
+                "success": False,
+                "total": 0,
+                "inserted": 0,
+                "docTitle": title,
+                "expertName": "",
+                "opinions": [],
+                "error": "content and title are required",
+            }), 400
+        result = parse_interview(content, title)
+        return jsonify(result)
+    except Exception as e:
+        print("[api_parse] error:", e)
+        return jsonify({
+            "success": False,
+            "total": 0,
+            "inserted": 0,
+            "docTitle": "",
+            "expertName": "",
+            "opinions": [],
+            "error": str(e),
+        }), 500
