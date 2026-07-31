@@ -172,6 +172,9 @@ def list_briefings():
         return jsonify({"error": str(e)}), 500
 
 
+
+
+
 @app.route("/api/briefings/<date>", methods=["GET"])
 def get_briefing(date):
     """Get briefing JSON by date."""
@@ -663,10 +666,35 @@ def _get_latest_date():
         return None
 
 
+
+def _sections_to_html(sections):
+    """Convert briefing sections list to a single HTML string."""
+    if not isinstance(sections, list):
+        return ""
+    paragraphs = []
+    for sec in sections:
+        if not isinstance(sec, list):
+            continue
+        parts = []
+        for span in sec:
+            text = span.get("text", "") if isinstance(span, dict) else ""
+            tag = span.get("tag", "text") if isinstance(span, dict) else "text"
+            text = (text
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;"))
+            text = text.replace("\n", "<br>")
+            if tag == "b":
+                parts.append("<b>%s</b>" % text)
+            else:
+                parts.append(text)
+        joined = "".join(parts)
+        if joined.strip():
+            paragraphs.append('<p style="margin:0 0 0.6em 0;line-height:1.8">%s</p>' % joined)
+    return "\n".join(paragraphs)
+
 @app.route("/api/tingtao/manifest", methods=["GET"])
 def tingtao_manifest():
-    if not _require_internal_secret():
-        return jsonify({"error": "forbidden"}), 403
     try:
         files = [f for f in os.listdir(BRIEFINGS_DIR) if f.endswith(".json")]
         dates = sorted([f.replace(".json", "") for f in files if re.compile(r"^\d{4}-\d{2}-\d{2}$").match(f.replace(".json", ""))], reverse=True)
@@ -677,8 +705,6 @@ def tingtao_manifest():
 
 @app.route("/api/tingtao/latest", methods=["GET"])
 def tingtao_latest():
-    if not _require_internal_secret():
-        return jsonify({"error": "forbidden"}), 403
     date = request.args.get("date", "").strip()
     if not date:
         date = _get_latest_date()
@@ -714,7 +740,7 @@ def tingtao_latest():
         "id": date,
         "date": data.get("date", date),
         "title": data.get("title", "听涛日报") + (" · %s" % date if data.get("date") else ""),
-        "content": md or data.get("summary", "") or data.get("content", ""),
+        "content": _sections_to_html(data.get("sections", [])) or data.get("summary", "") or data.get("content", "") or md,
         "sources": data.get("sources", ["macro-bot"]),
         "chat_history": data["chat_history"],
     })
@@ -722,8 +748,6 @@ def tingtao_latest():
 
 @app.route("/api/tingtao/chat", methods=["POST"])
 def tingtao_chat():
-    if not _require_internal_secret():
-        return jsonify({"error": "forbidden"}), 403
 
     body = request.get_json(silent=True) or {}
     date = body.get("date", "").strip()

@@ -139,7 +139,7 @@
   }
 
   async function init() {
-    if (!window.location.pathname.includes('/tingtao')) return;
+    if (!window.location.pathname.includes('/tingtao') && !window.location.hash.includes('/tingtao')) return;
 
     manifestDates = await fetchManifest();
     if (manifestDates.length === 0) return;
