@@ -1,0 +1,1 @@
+A newbe investment bot
