@@ -1,6 +1,13 @@
 # Add this to root crontab (crontab -e)
-# Runs daily at 07:30, so hits/YYYY-MM-DD.json is ready before bot.py at 08:00
+# Runs daily at 07:30/07:32, so hits/YYYY-MM-DD.json is ready before bot.py at 08:00.
 # flock -n exits immediately if another instance is still running, preventing overlapping runs.
+# timeout 900 prevents a hung process from blocking the next day.
 
-30 7 * * * cd /www/wwwroot/macro-bot/daily-news-fetcher && /usr/bin/flock -n /var/lock/macro-bot-fetch.lock -c '/usr/bin/python3 fetch.py &>> /www/wwwroot/macro-bot/daily-news-fetcher/logs/cron.log 2>&1 && /usr/bin/python3.8 akshare_fetcher.py &>> /www/wwwroot/macro-bot/daily-news-fetcher/logs/cron.log 2>&1'
-0 8 * * * cd /www/wwwroot/macro-bot && /usr/bin/flock -n /var/lock/macro-bot-bot.lock -c '/usr/bin/python3 bot.py &>> /www/wwwroot/macro-bot/run.log 2>&1'
+SHELL=/bin/bash
+PATH=/www/wwwroot/.venv311/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+TZ=Asia/Shanghai
+
+30 7 * * * cd /www/wwwroot/macro-bot/daily-news-fetcher && /usr/bin/timeout 900 /usr/bin/flock -n /tmp/macro-bot-fetch.lock -c '/www/wwwroot/.venv311/bin/python -u fetch.py >> /www/wwwroot/macro-bot/daily-news-fetcher/logs/cron.log 2>&1'
+32 7 * * * cd /www/wwwroot/macro-bot/daily-news-fetcher && /usr/bin/timeout 900 /usr/bin/flock -n /tmp/macro-bot-fetch.lock -c '/www/wwwroot/.venv311/bin/python -u akshare_fetcher.py >> /www/wwwroot/macro-bot/daily-news-fetcher/logs/akshare.log 2>&1'
+0 8 * * * cd /www/wwwroot/macro-bot && /usr/bin/timeout 900 /usr/bin/flock -n /tmp/macro-bot-bot.lock -c '/www/wwwroot/.venv311/bin/python -u bot.py >> /www/wwwroot/macro-bot/run.log 2>&1'
+0 8 * * * /usr/bin/timeout 900 /www/wwwroot/stock-tweet-bot/run.sh
