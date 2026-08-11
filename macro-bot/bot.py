@@ -147,6 +147,19 @@ except ImportError:  # pragma: no cover
     STOCK_DATA_MIN_SIZE_USD = 10_000_000.0
     NEWS_MAX_HOLDINGS = 5
 
+# ========== Kimi 专业数据源增强（T8 集成） ==========
+try:
+    from kimi_datasource_enrichment import (  # type: ignore
+        enrich_macro_context,
+        enrich_stock_context,
+    )
+except ImportError:  # pragma: no cover
+    def enrich_macro_context() -> str:
+        return ""
+
+    def enrich_stock_context(ticker: str, exchange: str = "CH") -> str:
+        return ""
+
 
 # ========== T5: 新闻聚合模块 ==========
 try:
@@ -354,8 +367,9 @@ def _build_user_prompt(
     market,
     macro_summary=None,
     news_text=None,
+    kimi_enrichment=None,
 ):
-    """Construct Kimi user prompt (T5 enhanced with structured news text)."""
+    """Construct Kimi user prompt (T5 enhanced with structured news text, T8 enhanced with Kimi datasource)."""
     md = market or {}
     lines = [
         "【持仓数据】",
@@ -413,6 +427,12 @@ def _build_user_prompt(
         lines.append("【宏观摘要（近 3 月）】")
         lines.append(macro_summary)
 
+    # T8: Kimi datasource enrichment (arxiv research / tonghuashun financial data)
+    if kimi_enrichment:
+        lines.append("")
+        lines.append("【Kimi 专业数据源补充】")
+        lines.append(kimi_enrichment)
+
     # T5: Structured news text
     if news_text:
         lines.append("")
@@ -430,6 +450,7 @@ def generate_signal(
     signal_strength="base",
     macro_summary=None,
     news_text=None,
+    kimi_enrichment=None,
 ):
     """Generate AI signal for single holding via model_router."""
     template = load_prompt_template()
@@ -457,7 +478,7 @@ def generate_signal(
     if template:
         system_prompt = "%s\n\n%s" % (template, system_prompt)
 
-    user_prompt = _build_user_prompt(holding, market, macro_summary, news_text) + (
+    user_prompt = _build_user_prompt(holding, market, macro_summary, news_text, kimi_enrichment) + (
         "\n\n请基于以上数据和规则，生成分析信号。严格遵循输出格式。"
     )
 
@@ -603,6 +624,14 @@ def generate_briefing(holdings: Optional[List[Dict[str, Any]]] = None) -> Dict[s
     log("[INFO] 调 FinanceMCP 宏观摘要 (cpi/ppi/cn_pmi)...")
     macro_summary = _get_macro_summary_with_fallback(months=3, max_chars=200)
 
+    # ===== T8: Kimi 专业数据源宏观增强（共享 1 次） =====
+    log("[INFO] 调 Kimi 专业数据源宏观增强 (arxiv research)...")
+    kimi_macro_enrichment = enrich_macro_context()
+    if kimi_macro_enrichment:
+        macro_summary = "\n\n".join(
+            [s for s in [macro_summary, kimi_macro_enrichment] if s]
+        )
+
     # ===== 新闻聚合（严格24小时） =====
     log("[INFO] 开始新闻聚合（24h窗口）...")
     news_map = {}
@@ -667,11 +696,22 @@ def generate_briefing(holdings: Optional[List[Dict[str, Any]]] = None) -> Dict[s
             news_items = news_map.get(name) or news_map.get(ticker) or []
             news_text = format_news_for_prompt(news_items)
 
+            # T8: 股票级 Kimi 专业数据源增强（仅 A 股核心持仓 >= $10M）
+            kimi_stock_enrichment = ""
+            if ex.upper() == "CH" and size >= STOCK_DATA_MIN_SIZE_USD:
+                log(f"[INFO] 调 Kimi 专业数据源股票增强 {ticker}.{ex}...")
+                kimi_stock_enrichment = enrich_stock_context(ticker, ex)
+                if kimi_stock_enrichment:
+                    log(f"[OK] {ticker}.{ex}: Kimi 股票增强已获取")
+                else:
+                    log(f"[WARN] {ticker}.{ex}: Kimi 股票增强无数据")
+
             signal = generate_signal(
                 h,
                 market,
                 macro_summary=macro_summary,
                 news_text=news_text,
+                kimi_enrichment=kimi_stock_enrichment,
             )
             sections.append(_section(f"  {name} ({ticker}.{ex})"))
             for line in (signal or "🟡 观察").split("\n"):
@@ -680,7 +720,7 @@ def generate_briefing(holdings: Optional[List[Dict[str, Any]]] = None) -> Dict[s
             sections.append(_section(""))
             time.sleep(0.5)
 
-    sections.append(_section("*数据源: 持仓Excel + 东方财富(CH) + FinanceMCP + Kimi*"))
+    sections.append(_section("*数据源: 持仓Excel + 东方财富(CH) + FinanceMCP + Kimi专业数据源*"))
 
     return {
         "title": title,
