@@ -1,11 +1,11 @@
 [Unit]
-Description=Refresh Kimi CLI access token for datasource MCP
+Description=Refresh Kimi Code access token for datasource MCP
 After=network.target
 
 [Service]
 Type=oneshot
 User=root
-ExecStart=/root/.kimi-code/scripts/refresh-token.sh
+ExecStart=/www/wwwroot/investment_tool/macro-bot/scripts/refresh-token.sh
 StandardOutput=append:/var/log/kimi-token-refresh.log
 StandardError=append:/var/log/kimi-token-refresh.log
 
