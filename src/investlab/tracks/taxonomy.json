@@ -1,0 +1,60 @@
+{
+  "$comment": "投资赛道框架，对齐《AI生产端普及·经济增量与二三级赛道研究·2026》第二部分。规模/CAGR为第三方机构口径，仅作研究框架非投资建议。",
+  "version": "2026.08",
+  "thesis": "AI生产端（供给侧）普及 → 经济增量 → 高增量二级/三级赛道。两条增量逻辑：A类=算力资本开支（卖铲子，确定性高）；B类=下游生产率提升（用铲子，弹性大）。分水岭：上游进入业绩兑现阶段，下游多在主题/事件驱动阶段。",
+  "allocation_frame": {
+    "A类_capex": "用算力/电力拿确定性beta（光模块/液冷/电源/PCB/铜缆/电力设备）",
+    "B类_高渗透": "用Agent软件/金融IT拿2026-2028的alpha",
+    "期权仓": "医疗AI与具身智能拿2027-2030的期权"
+  },
+  "secondary_tracks": [
+    {"id": "ai-chip", "name": "AI芯片", "class": "A", "tier2": true, "tam": "AI数据中心芯片2029年$2860亿(Omdia)", "cagr": "25-30%", "driver": "训练+推理放量、ASIC定制化起量", "stocks_ch": ["688256.SZ", "688041.SS"], "stocks_hk": [], "stocks_us": ["NVDA", "AMD", "AVGO", "MRVL"], "maturity": "成熟"},
+    {"id": "hbm", "name": "HBM存储", "class": "A", "tier2": true, "tam": "2025年$467亿(+156%)", "cagr": "50%+", "driver": "HBM4量产、单卡容量提升", "stocks_ch": ["688525.SS", "002409.SZ"], "stocks_hk": [], "stocks_us": ["MU"], "maturity": "成长"},
+    {"id": "advanced-packaging", "name": "先进封装CoWoS", "class": "A", "tier2": true, "tam": "台积电产能2025年7.5万→2026年12.5万片/月", "cagr": "40%+", "driver": "2.5D/3D封装、chiplet", "stocks_ch": ["600584.SS", "002156.SZ"], "stocks_hk": [], "stocks_us": ["TSM", "ASX"], "maturity": "成长"},
+    {"id": "ai-server", "name": "AI服务器/整机柜", "class": "A", "tier2": true, "tam": "2026全球$1587亿、出货约200万台", "cagr": "25%", "driver": "NVL72机柜级交付、ASIC服务器扩张", "stocks_ch": ["601138.SS", "000977.SZ", "603019.SS"], "stocks_hk": ["00992.HK"], "stocks_us": ["DELL", "SMCI"], "maturity": "成长(低毛利)"},
+    {"id": "optical-module", "name": "光模块/光器件", "class": "A", "tier2": true, "tam": "AI光模块2026年$260亿(TrendForce)", "cagr": "30%+", "driver": "800G放量、1.6T起量", "stocks_ch": ["300308.SZ", "300502.SZ", "300394.SZ"], "stocks_hk": [], "stocks_us": ["COHR", "LITE", "FN"], "maturity": "成长"},
+    {"id": "cpo", "name": "CPO/硅光", "class": "A", "tier2": true, "tam": "CPO/NPO 2030年$390亿", "cagr": "高(低基数)", "driver": "英伟达CPO量产、功耗瓶颈", "stocks_ch": ["688313.SS", "300570.SZ"], "stocks_hk": [], "stocks_us": ["TSM", "AVGO", "COHR"], "maturity": "早期"},
+    {"id": "liquid-cooling", "name": "液冷", "class": "A", "tier2": true, "tam": "中国液冷服务器2025年>¥200亿，三年翻倍", "cagr": "40%+", "driver": "单机柜功率40kW→120kW", "stocks_ch": ["002837.SZ", "300499.SZ", "872808.SS"], "stocks_hk": [], "stocks_us": ["VRT", "MOD"], "maturity": "成长"},
+    {"id": "power-hvdc", "name": "AI电源HVDC/BBU", "class": "A", "tier2": true, "tam": "千亿元级人民币市场(中金)", "cagr": "30%+", "driver": "800V HVDC、机柜级备电BBU", "stocks_ch": ["002851.SZ", "002364.SZ", "300870.SZ"], "stocks_hk": [], "stocks_us": ["VRT", "ETN"], "maturity": "成长(偏早期)"},
+    {"id": "pcb-ccl", "name": "PCB/CCL", "class": "A", "tier2": true, "tam": "2028年AI服务器PCB $840亿 / CCL $480亿(高盛)", "cagr": "25-30%", "driver": "高多层、HDI、M8级材料", "stocks_ch": ["002463.SZ", "300476.SZ", "600183.SS"], "stocks_hk": ["01888.HK"], "stocks_us": [], "maturity": "成长"},
+    {"id": "cable-aec", "name": "高速铜缆/连接器", "class": "A", "tier2": true, "tam": "AEC 2024年$2.18亿→2029年$13.12亿(LightCounting)", "cagr": "43%", "driver": "机柜内短距互联替代光", "stocks_ch": ["002130.SZ", "002475.SZ", "300913.SZ"], "stocks_hk": [], "stocks_us": ["APH", "TEL"], "maturity": "成长"},
+    {"id": "grid-equipment", "name": "AI电力设备(燃气轮机/变压器)", "class": "A", "tier2": true, "tam": "美银：美国2030电力缺口100GW", "cagr": "20-30%", "driver": "数据中心电力瓶颈", "stocks_ch": ["688676.SS", "002028.SZ"], "stocks_hk": [], "stocks_us": ["GEV", "ETN", "VRT"], "maturity": "成长"},
+    {"id": "datacenter-idc", "name": "数据中心/IDC托管", "class": "A", "tier2": true, "tam": "2026全球数据中心用电+26%(Gartner)，2030需求翻倍", "cagr": "20%", "driver": "AI算力向AI工厂集中", "stocks_ch": ["300442.SZ", "603881.SS"], "stocks_hk": ["09698.HK"], "stocks_us": ["EQIX", "DLR"], "maturity": "成熟/成长"},
+    {"id": "agent-software", "name": "AI Agent/企业软件", "class": "B", "tier2": true, "tam": "2025年$78.4亿→2030年$526亿", "cagr": "~46%", "driver": "生产端流程自动化(客服/销售/代码/办公)", "stocks_ch": ["688111.SS", "600588.SS", "300170.SZ"], "stocks_hk": ["00268.HK"], "stocks_us": ["MSFT", "CRM", "NOW", "PLTR"], "maturity": "成长(早期)"},
+    {"id": "embodied-ai", "name": "具身智能/人形机器人", "class": "B", "tier2": true, "tam": "2035全球$510亿；中国2026年量产元年2万→10万台", "cagr": "高(低基数)", "driver": "工厂/物流/安防专用落地", "stocks_ch": ["601689.SS", "002050.SZ", "688017.SS"], "stocks_hk": ["09880.HK", "09660.HK"], "stocks_us": ["TSLA", "NVDA"], "maturity": "早期(主题)"},
+    {"id": "ai-medical", "name": "AI医疗", "class": "B", "tier2": true, "tam": "2030全球$1106亿(38.6% CAGR)", "cagr": "38.6%", "driver": "影像/诊断/制药/医院流程", "stocks_ch": ["688271.SS", "300253.SZ"], "stocks_hk": ["02228.HK", "02251.HK"], "stocks_us": ["TEM", "RXRX", "SDGR"], "maturity": "成长(早期)"},
+    {"id": "ai-education", "name": "AI教育", "class": "B", "tier2": true, "tam": "2026年$106亿→2030年$424.8亿", "cagr": "~41%", "driver": "个性化辅导、内容生成", "stocks_ch": ["002230.SZ", "002841.SZ"], "stocks_hk": ["09901.HK"], "stocks_us": ["DUOL", "COUR", "TAL"], "maturity": "早期/成长"},
+    {"id": "synthetic-data", "name": "合成数据/数据标注", "class": "B", "tier2": true, "tam": "合成数据2023年$3.23亿→2030年$37亿", "cagr": "~42%", "driver": "训练数据短缺、隐私合规、具身数据", "stocks_ch": ["688787.SS", "300229.SZ"], "stocks_hk": [], "stocks_us": [], "maturity": "早期"},
+    {"id": "ai4science", "name": "AI for Science", "class": "B", "tier2": true, "tam": "早期(平台化起步)", "cagr": "高(低基数)", "driver": "制药/材料/化工研发加速", "stocks_ch": ["688222.SS"], "stocks_hk": ["02228.HK"], "stocks_us": ["SDGR", "RXRX"], "maturity": "早期(主题)"}
+  ],
+  "tertiary_tracks": [
+    {"id": "cold-plate-cooling", "name": "冷板式液冷", "parent": "liquid-cooling", "size": "中国液冷服务器2025年>¥200亿、未来三年翻倍以上", "barrier": "快接头防漏、CDU控温精度、整机可靠性验证与客户认证周期", "stocks": ["002837.SZ 英维克", "300499.SZ 高澜股份", "301018.SZ 申菱环境", "872808.SS 曙光数创(浸没式)", "VRT Vertiv", "MOD Modine"]},
+    {"id": "hvdc-bbu", "name": "电源HVDC+BBU", "parent": "power-hvdc", "size": "中金测算AI服务器电源为下一千亿元级市场；800V HVDC随NVL72渗透", "barrier": "功率密度、热设计、大客户联合开发认证(英伟达/云厂供应链准入)", "stocks": ["002851.SZ 麦格米特", "300870.SZ 欧陆通", "002364.SZ 中恒电气(HVDC)", "002245.SZ 蔚蓝锂芯(BBU电芯)", "VRT Vertiv", "ETN Eaton"]},
+    {"id": "aec-dac", "name": "高速铜缆AEC/DAC", "parent": "cable-aec", "size": "LightCounting: AEC 2024约$2.18亿→2029年$13.12亿(CAGR43%)；沃尔核材约占全球高速线缆1/4份额", "barrier": "224G信号完整性、Retimer/DSP芯片资源、精密押出与批量一致性", "stocks": ["002130.SZ 沃尔核材", "002475.SZ 立讯精密", "300913.SZ 兆龙互连", "688668.SS 鼎通科技", "APH 安费诺", "TEL TE"]},
+    {"id": "1-6t-optical", "name": "1.6T光模块+CPO光引擎", "parent": "optical-module", "size": "TrendForce: 2026全球AI光模块$260亿；CPO/NPO 2030年$390亿，英伟达CPO已量产", "barrier": "硅光芯片、光引擎封装良率、与英伟达/云厂交换机共研绑定", "stocks": ["300308.SZ 中际旭创", "300502.SZ 新易盛", "300394.SZ 天孚通信", "002281.SZ 光迅科技", "COHR Coherent"]},
+    {"id": "hbm4-materials", "name": "HBM4及上游材料", "parent": "hbm", "size": "HBM 2024年$182亿→2025年$467亿(+156%)占DRAM产值30%；HBM4量产在即", "barrier": "TSV+堆叠+混合键合；前驱体/填充料/键合胶国产替代", "stocks": ["MU 美光", "002409.SZ 雅克科技(前驱体)", "688300.SS 联瑞新材(填充料)", "688525.SS 佰维存储(封测)", "688008.SS 澜起科技(互连)"]},
+    {"id": "screw-dexterous", "name": "行星滚柱丝杠+灵巧手", "parent": "embodied-ai", "size": "浙商证券: 2026丝杠市场约¥242亿(身体140+灵巧手102)；关节成本占机器人约60%，核心零部件空间超¥8000亿", "barrier": "行星滚柱丝杠高精度磨削/冷锻工艺良率；微型空心杯电机与触觉传感器集成", "stocks": ["603667.SS 五洲新春", "300580.SZ 贝斯特", "601100.SS 恒立液压", "003021.SZ 兆威机电", "603728.SH 鸣志电器", "688017.SS 绿的谐波", "002472.SZ 双环传动"]},
+    {"id": "synthetic-data-op", "name": "合成数据+数据标注", "parent": "synthetic-data", "size": "合成数据2023年$323M→2030年$3.7B(~42% CAGR)；标注市场2024-2030 CAGR 25-30%", "barrier": "垂域高质量数据资产、标注工程化能力、合规", "stocks": ["688787.SS 海天瑞声", "300229.SZ 拓尔思"]},
+    {"id": "coding-agent", "name": "代码Agent(AI编程)", "parent": "agent-software", "size": "海外价值已验证(Cursor/Copilot ARR高增)；国内开启高增长周期", "barrier": "底层模型+IDE生态+企业私有代码库理解与安全合规", "stocks": ["MSFT GitHub Copilot", "688111.SS 金山办公", "688258.SS 卓易信息", "00268.HK 金蝶国际"]}
+  ],
+  "top_ranking": [
+    {"rank": 1, "track": "1.6T光模块/CPO光引擎", "id": "1-6t-optical", "mode": "基本面选股"},
+    {"rank": 2, "track": "HBM4及材料/封装", "id": "hbm4-materials", "mode": "基本面选股"},
+    {"rank": 3, "track": "冷板式液冷", "id": "cold-plate-cooling", "mode": "基本面选股"},
+    {"rank": 4, "track": "电源HVDC/BBU", "id": "hvdc-bbu", "mode": "基本面选股"},
+    {"rank": 5, "track": "高速铜缆AEC/DAC", "id": "aec-dac", "mode": "基本面选股"},
+    {"rank": 6, "track": "PCB/CCL高多层", "id": "pcb-ccl", "mode": "基本面选股"},
+    {"rank": 7, "track": "AI电力设备", "id": "grid-equipment", "mode": "基本面选股"},
+    {"rank": 8, "track": "代码Agent/企业Agent软件", "id": "coding-agent", "mode": "过渡期(海外兑现/国内估值先行)"},
+    {"rank": 9, "track": "行星滚柱丝杠+灵巧手", "id": "screw-dexterous", "mode": "主题(2026放量验证)"},
+    {"rank": 10, "track": "AI医疗/AI教育/合成数据", "id": "ai-medical", "mode": "主题(渗透早期)"}
+  ],
+  "verification_metrics": [
+    "云厂商资本开支Capex(阿里/腾讯/百度财报+微软/谷歌/Meta/亚马逊财报)",
+    "英伟达/AMD数据中心收入与指引+台积电/信骅月度营收(景气温度计)",
+    "海关HS编码进出口(8542集成电路/8517通信设备/8471计算机/9001光缆)",
+    "SEMI Billing/TrendForce存储价格/LightCounting光模块出货(周期位置)",
+    "中电联用电量+IDC上市公司上架率(投运验证)",
+    "招聘数据(AI/算力岗位+薪资，扩产前瞻)"
+  ]
+}

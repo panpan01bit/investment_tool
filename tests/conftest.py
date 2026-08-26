@@ -1,19 +1,31 @@
-"""conftest.py — make server-review subprojects importable without installing them."""
-import os
+"""pytest 全局 fixture：隔离 data dir / vault，禁网模式跑纯逻辑测试。"""
+
+from __future__ import annotations
+
 import sys
-import tempfile
+from pathlib import Path
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-sys.path.insert(0, os.path.join(ROOT, "macro-bot"))
-sys.path.insert(0, os.path.join(ROOT, "stock-tweet-bot"))
+import pytest
 
-# Tests that need a tmp BRIEFINGS_DIR or .env should use the fixture in conftest.
+SRC = Path(__file__).resolve().parents[1] / "src"
+sys.path.insert(0, str(SRC))
 
-# Ensure app.py can be imported for tests — its DB_PATH points to /www/wwwroot/...
-# which doesn't exist locally. Provide a temp DB and temp BRIEFINGS_DIR via env
-# before any test imports the app module.
-_TMP_HOME = tempfile.mkdtemp(prefix="server-review-tests-")
-os.environ.setdefault("BRIEFING_OUTPUT_DIR", os.path.join(_TMP_HOME, "briefings"))
-os.makedirs(os.environ["BRIEFING_OUTPUT_DIR"], exist_ok=True)
-# app.py reads BRIEFINGS_DIR via os.getenv; provide a temp DB via monkey-patching
-# sqlite3.connect inside _init_db.
+
+@pytest.fixture()
+def isolated_env(tmp_path, monkeypatch):
+    """注入隔离环境并重置 settings 单例。"""
+    env = {
+        "INVESTLAB_DATA_DIR": str(tmp_path / "data"),
+        "INVESTLAB_OBSIDIAN_VAULT": str(tmp_path / "vault"),
+        "INVESTLAB_LLM_API_KEY": "",
+        "TUSHARE_TOKEN": "",
+        "TAVILY_API_KEY": "",
+    }
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    import investlab.config as cfg
+
+    cfg._settings = None
+    s = cfg.get_settings(refresh=True)
+    yield s
+    cfg._settings = None

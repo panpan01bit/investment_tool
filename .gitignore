@@ -1,0 +1,37 @@
+# ---- 密钥 / 环境 ----
+.env
+.env.*
+!.env.example
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+
+# ---- 运行时数据（本地工具，不入库）----
+data/
+!src/investlab/tracks/taxonomy.json
+*.db
+
+# ---- 前端 ----
+web/node_modules/
+web/dist/
+
+# ---- 证书与敏感文件（双保险）----
+*.pem
+*.key
+secrets.*
+
+# ---- OS / 编辑器 ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ---- 本地安全扫描工具状态（非项目代码）----
+.mimosa/

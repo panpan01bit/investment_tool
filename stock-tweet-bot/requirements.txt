@@ -1,4 +1,0 @@
-# Auto-generated requirements for stock-tweet-bot
-# Source: 1 Python file; local/stdlib modules removed.
-pyyaml
-requests
