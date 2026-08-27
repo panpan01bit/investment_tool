@@ -24,8 +24,11 @@ RSS 新闻      ─┼──▶│   个股深度研究 → Obsidian「20 个股
 | 📝 **Obsidian 集成** | 所有产出写入你的 Vault（听涛晨报 / 个股研究 / 报告库），Dataview 友好的 frontmatter 与索引 |
 | 🔍 **搜索聚合** | DuckDuckGo 免费内置，可选叠加 Tavily；去重、来源多样性加权、`[web]` 徽章与行情数据严格区分 |
 | 📈 **量化** | 纯 pandas 实现的指标库（MA/MACD/RSI/KDJ/BOLL/OBV/ATR/波动率/回撤）、规则化信号引擎（-100~100 分+理由）、轻量向量化回测（均线交叉/RSI回归/突破）、组合视图、赛道筛选 |
+| 🎛 **绩效与组合优化** | quantstats 绩效指标+HTML 报告（一键存入 Obsidian）；PyPortfolioOpt 建议权重（HRP/最大夏普/最小波动）与调仓清单 |
+| 📟 **专业K线** | klinecharts 蜡烛图（A股配色：涨红跌绿）+ MA/VOL/MACD/RSI 四联副图，研究/信号页即点即看 |
 | 🧭 **赛道框架** | 内置《AI 生产端普及·2026》18 个二级赛道 + 8 个三级赛道 taxonomy（含代表标的与验证指标清单），持仓自动映射到 capex链(A类)/生产率链(B类) |
 | 💬 **研究问答** | 基于当日简报 + 联网搜索的追问（替代旧飞书机器人对话） |
+| 📲 **手机推送** | 晨报生成后经 ntfy（可自托管）或 Bark(iOS) 推送通知——飞书推送的本地化替代 |
 | 🖥 **Web 控制台** | React 全新前端：简报 / 持仓 / 研究 / 量化 / 报告库 / 问答 / 设置 |
 
 ## 快速开始
@@ -51,6 +54,8 @@ investlab report ingest ~/Downloads/x.pdf
 investlab report parse <报告id> --vision # 图表提取+视觉结构化
 investlab signals 002837.SZ              # 英维克技术信号
 investlab screener optical-module        # 光模块赛道观察矩阵
+investlab portfolio-optimize --method hrp # 组合优化建议+调仓清单
+investlab notify-test                    # 测试 ntfy/Bark 推送
 investlab chat "液冷板块今天为什么涨？"    # 追问
 investlab serve                          # Web 控制台 http://127.0.0.1:8300
 ```

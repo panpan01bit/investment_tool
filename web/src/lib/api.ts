@@ -277,6 +277,62 @@ export interface BacktestResp {
   error?: string;
 }
 
+export interface Candle {
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface CandlesResp {
+  symbol: string;
+  count: number;
+  klines: Candle[];
+}
+
+export interface QuantstatsMetrics {
+  ok: boolean;
+  error?: string;
+  days?: number;
+  total_return_pct?: number;
+  cagr_pct?: number;
+  sharpe?: number;
+  sortino?: number;
+  volatility_pct?: number;
+  max_drawdown_pct?: number;
+  calmar?: number;
+  win_rate_pct?: number;
+  best_day_pct?: number;
+  worst_day_pct?: number;
+  var_95_pct?: number;
+  worst_dd_window?: { start: string; end: string; days: number; depth_pct: number };
+}
+
+export interface TearSheetResp {
+  backtest: BacktestResp;
+  quantstats: QuantstatsMetrics;
+  report: { ok: boolean; error?: string; size_kb?: number; obsidian_relpath?: string };
+}
+
+export interface OptimizeResp {
+  ok: boolean;
+  error?: string;
+  method?: string;
+  weights?: Record<string, number>;
+  metrics?: Record<string, unknown>;
+  current_weights?: Record<string, number>;
+  suggestions?: {
+    symbol: string;
+    current_pct: number;
+    target_pct: number;
+    diff_pct: number;
+    action: string;
+  }[];
+  disclaimer?: string;
+}
+
 export interface LensTrack {
   id: string;
   name: string;
@@ -455,6 +511,21 @@ export const api = {
 
   backtest: (req: BacktestReq): Promise<BacktestResp> =>
     request('/backtest', { method: 'POST', body: JSON.stringify(req) }),
+
+  candles: (symbol: string, days = 250): Promise<CandlesResp> =>
+    request(`/candles/${encodeURIComponent(symbol)}?days=${days}`),
+
+  backtestTearsheet: (req: BacktestReq): Promise<TearSheetResp> =>
+    request('/backtest/tearsheet', { method: 'POST', body: JSON.stringify(req) }),
+
+  portfolioOptimize: (method: string, maxWeight = 0.35): Promise<OptimizeResp> =>
+    request('/portfolio/optimize', {
+      method: 'POST',
+      body: JSON.stringify({ method, max_weight: maxWeight }),
+    }),
+
+  notifyTest: (): Promise<{ results: { channel: string; ok: boolean; detail: string }[] }> =>
+    request('/notify/test', { method: 'POST' }),
 
   screenLenses: (): Promise<LensesResp> => request('/screen/lenses'),
 

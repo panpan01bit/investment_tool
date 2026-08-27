@@ -5,12 +5,17 @@ import {
   api,
   type BacktestResp,
   type BacktestStrategy,
+  type Candle,
   type LensesResp,
+  type OptimizeResp,
+  type QuantstatsMetrics,
   type Signal,
+  type TearSheetResp,
   type TrackDetail,
 } from '../lib/api';
 import { errText, fmtInt, fmtNum, fmtPct, numClass } from '../lib/format';
 import { pushToast } from '../lib/toast';
+import CandleChart from '../components/CandleChart';
 import { Card, EmptyState, ErrorBanner, LoadingBlock, PageHead, RulesList, ScoreBar, Spinner, Tabs, WarnBanner } from '../components/ui';
 
 const TABS = [
@@ -295,6 +300,7 @@ function indValue(v: unknown, k: string): string {
 function SignalTab() {
   const [sym, setSym] = useState('');
   const [sig, setSig] = useState<Signal | null>(null);
+  const [klines, setKlines] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -305,8 +311,15 @@ function SignalTab() {
     setErr('');
     try {
       setSig(await api.signals(s));
+      // K线独立容错：拿不到只隐藏图，不影响信号
+      try {
+        setKlines((await api.candles(s, 250)).klines);
+      } catch {
+        setKlines([]);
+      }
     } catch (e) {
       setSig(null);
+      setKlines([]);
       setErr(errText(e));
     } finally {
       setLoading(false);
@@ -431,6 +444,12 @@ function SignalTab() {
           <Card title="规则明细">
             <RulesList rules={sig.rules} />
           </Card>
+
+          {klines.length > 0 && (
+            <Card title={`K线 · ${sig.symbol}（近${klines.length}个交易日）`}>
+              <CandleChart klines={klines} />
+            </Card>
+          )}
         </>
       )}
     </>
@@ -447,6 +466,8 @@ function BacktestTab() {
   const [days, setDays] = useState(500);
   const [resp, setResp] = useState<BacktestResp | null>(null);
   const [loading, setLoading] = useState(false);
+  const [tearsheet, setTearsheet] = useState<TearSheetResp | null>(null);
+  const [tsLoading, setTsLoading] = useState(false);
 
   const run = async () => {
     const s = sym.trim();
@@ -456,10 +477,30 @@ function BacktestTab() {
       const r = await api.backtest({ symbol: s, strategy, days: Math.max(30, Math.floor(days) || 250) });
       if (r.ok) pushToast('success', `回测完成：${s} · ${STRATEGY_LABELS[strategy]}`);
       setResp(r);
+      setTearsheet(null);
     } catch (e) {
       pushToast('error', `回测失败：${errText(e)}`, 8000);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runTearsheet = async () => {
+    const s = sym.trim();
+    if (!s) return;
+    setTsLoading(true);
+    try {
+      const r = await api.backtestTearsheet({ symbol: s, strategy, days: Math.max(120, Math.floor(days) || 250) });
+      setTearsheet(r);
+      if (r.quantstats.ok && r.report.ok) {
+        pushToast('success', '绩效报告已生成并保存到 Obsidian「50 组合/绩效报告」');
+      } else if (!r.quantstats.ok) {
+        pushToast('error', r.quantstats.error ?? '绩效计算失败', 8000);
+      }
+    } catch (e) {
+      pushToast('error', `绩效报告失败：${errText(e)}`, 8000);
+    } finally {
+      setTsLoading(false);
     }
   };
 
@@ -549,8 +590,41 @@ function BacktestTab() {
             {loading && <Spinner size={14} />}
             {loading ? '回测中…' : '运行回测'}
           </button>
+          <button className="btn" onClick={() => void runTearsheet()} disabled={tsLoading || !sym.trim()}>
+            {tsLoading && <Spinner size={14} />}
+            {tsLoading ? '生成中…' : '绩效报告 (quantstats)'}
+          </button>
         </div>
       </Card>
+
+      {tearsheet && (
+        <Card title="quantstats 绩效指标">
+          {tearsheet.quantstats.ok ? (
+            <>
+              <div className="stat-row stats-wrap">
+                <div className="stat"><div className="stat-label">年化 CAGR</div><div className="stat-value mono">{fmtPct(tearsheet.quantstats.cagr_pct)}</div></div>
+                <div className="stat"><div className="stat-label">夏普</div><div className="stat-value mono">{fmtNum(tearsheet.quantstats.sharpe)}</div></div>
+                <div className="stat"><div className="stat-label">索提诺</div><div className="stat-value mono">{fmtNum(tearsheet.quantstats.sortino)}</div></div>
+                <div className="stat"><div className="stat-label">Calmar</div><div className="stat-value mono">{fmtNum(tearsheet.quantstats.calmar)}</div></div>
+                <div className={`stat ${numClass(tearsheet.quantstats.max_drawdown_pct)}`}><div className="stat-label">最大回撤</div><div className="stat-value mono">{fmtPct(tearsheet.quantstats.max_drawdown_pct)}</div></div>
+                <div className="stat"><div className="stat-label">日胜率</div><div className="stat-value mono">{fmtPct(tearsheet.quantstats.win_rate_pct, 2, false)}</div></div>
+                <div className="stat"><div className="stat-label">VaR(95%)</div><div className="stat-value mono">{fmtPct(tearsheet.quantstats.var_95_pct)}</div></div>
+              </div>
+              {tearsheet.quantstats.worst_dd_window && (
+                <p className="muted small">
+                  最深回撤窗口：{tearsheet.quantstats.worst_dd_window.start} → {tearsheet.quantstats.worst_dd_window.end}
+                  （{tearsheet.quantstats.worst_dd_window.days} 天，{fmtPct(tearsheet.quantstats.worst_dd_window.depth_pct)}）
+                </p>
+              )}
+              {tearsheet.report.ok
+                ? <p className="muted small">完整 HTML 报告已写入 Obsidian：<span className="mono">{tearsheet.report.obsidian_relpath}</span>（{tearsheet.report.size_kb} KB）</p>
+                : <p className="muted small">HTML 报告未生成：{tearsheet.report.error}</p>}
+            </>
+          ) : (
+            <ErrorBanner message={tearsheet.quantstats.error ?? '绩效计算失败'} />
+          )}
+        </Card>
+      )}
 
       {resp && resp.ok === false && (
         <ErrorBanner message={`回测未完成：${resp.error ?? '未知原因（可能历史数据不足）'}`} />

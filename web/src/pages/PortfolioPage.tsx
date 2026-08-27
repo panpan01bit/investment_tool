@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   api,
+  type OptimizeResp,
   type PortfolioResp,
   type PortfolioRowInput,
   type Signal,
@@ -33,6 +34,25 @@ export default function PortfolioPage() {
   const [csvOpen, setCsvOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // 组合优化（PyPortfolioOpt）
+  const [optOpen, setOptOpen] = useState(false);
+  const [optMethod, setOptMethod] = useState('hrp');
+  const [opt, setOpt] = useState<OptimizeResp | null>(null);
+  const [optLoading, setOptLoading] = useState(false);
+
+  const runOptimize = async () => {
+    setOptLoading(true);
+    try {
+      const r = await api.portfolioOptimize(optMethod);
+      setOpt(r);
+      pushToast('success', `优化完成（${r.method}）：${Object.keys(r.weights ?? {}).length} 只标的`);
+    } catch (e) {
+      pushToast('error', `优化失败：${errText(e)}`, 8000);
+    } finally {
+      setOptLoading(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -118,6 +138,9 @@ export default function PortfolioPage() {
               <Icon name="refresh" size={14} />
               刷新
             </button>
+            <button className="btn" onClick={() => setOptOpen(!optOpen)}>
+              优化建议
+            </button>
             <button className="btn btn-primary" onClick={() => setCsvOpen(true)}>
               <Icon name="upload" size={14} />
               上传CSV
@@ -128,6 +151,78 @@ export default function PortfolioPage() {
 
       {err && <ErrorBanner message={err} onRetry={() => void load()} />}
       {!err && loading && !data && <LoadingBlock label="加载持仓…" />}
+
+      {optOpen && (
+        <Card title="组合优化建议（PyPortfolioOpt）">
+          <div className="bt-controls">
+            <select
+              className="input"
+              value={optMethod}
+              onChange={(e) => setOptMethod(e.target.value)}
+              disabled={optLoading}
+            >
+              <option value="hrp">层次风险平价 HRP（稳健，无需收益估计）</option>
+              <option value="max_sharpe">最大夏普（历史均值估计）</option>
+              <option value="min_volatility">最小波动</option>
+            </select>
+            <button className="btn btn-primary" onClick={() => void runOptimize()} disabled={optLoading}>
+              {optLoading && <Spinner size={14} />}
+              {optLoading ? '优化中…' : '运行优化'}
+            </button>
+            <span className="muted small">
+              至少2只持仓 · 单标的≤35% · 基于近一年历史协方差，非投资建议
+            </span>
+          </div>
+          {opt?.ok && (
+            <div className="tbl-wrap" style={{ marginTop: 12 }}>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>标的</th>
+                    <th className="num">当前权重</th>
+                    <th className="num">目标权重</th>
+                    <th className="num">偏离</th>
+                    <th>动作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(opt.weights ?? {}).map(([sym, w]) => {
+                    const s = (opt.suggestions ?? []).find((x) => x.symbol === sym);
+                    const cur = opt.current_weights?.[sym] ?? 0;
+                    const tgt = w * 100;
+                    const diff = tgt - cur;
+                    return (
+                      <tr key={sym}>
+                        <td className="mono">{sym}</td>
+                        <td className="num mono">{cur.toFixed(1)}%</td>
+                        <td className="num mono"><b>{tgt.toFixed(1)}%</b></td>
+                        <td className={`num mono ${Math.abs(diff) >= 3 ? (diff > 0 ? 'up-ok' : 'down-warn') : 'muted'}`}>
+                          {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
+                        </td>
+                        <td>{s?.action ?? (Math.abs(diff) >= 3 ? (diff > 0 ? '买入增持' : '减持') : '持有')}</td>
+                      </tr>
+                    );
+                  })}
+                  {(opt.suggestions ?? [])
+                    .filter((x) => !(opt.weights ?? {})[x.symbol])
+                    .map((x) => (
+                      <tr key={x.symbol}>
+                        <td className="mono">{x.symbol}</td>
+                        <td className="num mono">{x.current_pct.toFixed(1)}%</td>
+                        <td className="num mono"><b>0.0%</b></td>
+                        <td className="num mono down-warn">{x.diff_pct.toFixed(1)}%</td>
+                        <td>{x.action}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+              <p className="muted small">
+                {(opt.metrics as { method_note?: string })?.method_note ?? ''} · {opt.disclaimer}
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
 
       {data && (
         <>

@@ -24,9 +24,11 @@ from ..analysis.chat import chat as chat_answer
 from ..analysis.deep_analysis import analyze_symbol, gather_facts
 from ..config import get_settings
 from ..datasources import macro as macromod
+from ..datasources.candles import get_candles
 from ..datasources.quotes import get_quote
 from ..netguard import UnsafeURLError
 from ..obsidian.vault import new_vault
+from ..quant import analytics
 from ..quant.backtest import STRATEGIES, run_backtest
 from ..quant.portfolio import build_portfolio_view, save_portfolio_snapshot
 from ..quant.screener import screen_portfolio_lenses, screen_track
@@ -124,12 +126,18 @@ def health():
 def settings_status():
     s = get_settings()
     st = s.token_status()
+    from .. import notify
+    from ..reports import mineru_engine
+
     return {
         "version": "2.0.0",
         "tokens": {k: ("已配置" if v else "未配置") for k, v in st.items()},
         "vault_path": str(s.vault_path),
         "data_dir": str(s.data_dir),
         "mode": "local" if s.auth_disabled else "server-auth",
+        "report_engine": s.report_engine,
+        "mineru_available": mineru_engine.is_available(),
+        "notify": notify.status(),
     }
 
 
@@ -167,7 +175,7 @@ def portfolio_view():
 @app.post("/api/portfolio", dependencies=[Depends(require_auth)])
 async def portfolio_upload(rows: list[dict]):
     """前端保存新持仓（CSV 导入的行数组）。"""
-    from .quant.portfolio import write_holdings_csv
+    from ..quant.portfolio import write_holdings_csv
 
     clean = []
     for r in rows[:200]:
@@ -196,6 +204,40 @@ async def portfolio_upload(rows: list[dict]):
         raise HTTPException(400, "没有可用的持仓行")
     path = write_holdings_csv(clean)
     return {"ok": True, "saved_to": str(path)}
+
+
+class OptimizeIn(BaseModel):
+    method: str = "hrp"          # max_sharpe | min_volatility | hrp
+    max_weight: float = Field(default=0.35, gt=0.01, le=1.0)
+
+
+@app.post("/api/portfolio/optimize", dependencies=[Depends(require_auth)])
+def portfolio_optimize(payload: OptimizeIn):
+    """组合优化建议：拉持仓历史价格 → PyPortfolioOpt → 与当前权重对比。"""
+    from ..quant.portfolio import load_holdings
+
+    holdings = load_holdings()
+    symbols = sorted({h["symbol"] for h in holdings})
+    if len(symbols) < 2:
+        raise HTTPException(400, "组合优化至少需要2只持仓（请先完善 holdings.csv）")
+    candles_by_symbol = {s: get_candles(s, days=260) for s in symbols}
+    prices = analytics.prices_frame(candles_by_symbol)
+    result = analytics.optimize(prices, method=payload.method,
+                                max_weight=payload.max_weight)
+    if not result.get("ok"):
+        raise HTTPException(400, result.get("error", "优化失败"))
+    current = {}
+    total_mv = 0.0
+    view = build_portfolio_view()
+    for p in view.positions:
+        mv = p.market_value or 0.0
+        total_mv += mv
+    if total_mv > 0:
+        for p in view.positions:
+            current[p.symbol] = round((p.market_value or 0.0) / total_mv * 100, 2)
+    result["suggestions"] = analytics.rebalance_suggestions(current, result["weights"])
+    result["current_weights"] = current
+    return result
 
 
 @app.get("/api/macro", dependencies=[Depends(require_auth)])
@@ -258,6 +300,85 @@ def screener_track(track_id: str):
 @app.get("/api/screen/lenses", dependencies=[Depends(require_auth)])
 def screener_lenses():
     return screen_portfolio_lenses()
+
+
+@app.get("/api/candles/{symbol}", dependencies=[Depends(require_auth)])
+def candles(symbol: str, days: int = 250):
+    """K线数据（klinecharts 格式：timestamp 毫秒）。"""
+    days = max(30, min(int(days), 1000))
+    rows = get_candles(symbol, days=days)
+    if not rows:
+        raise HTTPException(404, f"无K线数据: {symbol}")
+    out = []
+    for r in rows:
+        try:
+            from datetime import datetime as _dt
+
+            ts = int(_dt.strptime(str(r["date"])[:10], "%Y-%m-%d").timestamp() * 1000)
+        except ValueError:
+            continue
+        out.append({
+            "timestamp": ts,
+            "open": r["open"], "high": r["high"], "low": r["low"],
+            "close": r["close"], "volume": r.get("volume") or 0,
+        })
+    if not out:
+        raise HTTPException(404, f"K线日期解析失败: {symbol}")
+    return {"symbol": symbol, "count": len(out), "klines": out}
+
+
+class TearSheetIn(BaseModel):
+    symbol: str
+    strategy: str = "sma_cross"
+    days: int = 500
+
+
+@app.post("/api/backtest/tearsheet", dependencies=[Depends(require_auth)])
+def backtest_tearsheet(payload: TearSheetIn):
+    """回测 + quantstats 绩效指标 + HTML 报告（存 Obsidian 附件目录）。"""
+    if payload.strategy not in STRATEGIES:
+        raise HTTPException(400, f"策略须为 {STRATEGIES}")
+    days = max(120, min(int(payload.days), 1200))
+    result = run_backtest(payload.symbol, strategy=payload.strategy, days=days)
+    if not result.get("ok"):
+        raise HTTPException(400, result.get("error", "回测失败"))
+    import pandas as pd
+
+    curve = result.get("curve") or []
+    equity = pd.Series(
+        [c["strategy"] for c in curve],
+        index=pd.to_datetime([c["date"] for c in curve]),
+    )
+    returns = equity.pct_change().dropna()
+    metrics = analytics.performance_metrics(returns)
+    report = {"ok": False}
+    if metrics.get("ok"):
+        vault = new_vault()
+        out = vault.abs_path(
+            "50 组合/绩效报告/"
+            f"{payload.symbol.replace('.', '_')}_{payload.strategy}_tearsheet.html"
+        )
+        report = analytics.tear_sheet_html(
+            returns, out, title=f"{payload.symbol} {payload.strategy}"
+        )
+        if report.get("ok"):
+            report["obsidian_relpath"] = str(out.relative_to(vault.path))
+    return {"backtest": {k: v for k, v in result.items() if k != "curve"},
+            "quantstats": metrics, "report": report}
+
+
+# ------------------------------------------------------------------ 推送
+
+
+@app.post("/api/notify/test", dependencies=[Depends(require_auth)])
+def notify_test():
+    """向已配置通道发一条测试推送。"""
+    from .. import notify
+
+    results = notify.send_push("InvestLab 测试推送", "如果你收到这条消息，推送通道配置成功 ✅")
+    if not results:
+        raise HTTPException(400, "未配置任何推送通道（.env 中 INVESTLAB_NOTIFY_*）")
+    return {"results": [r.__dict__ for r in results]}
 
 
 # ------------------------------------------------------------------ 搜索 / 追问
@@ -356,6 +477,21 @@ def vault_tree(limit: int = 60):
 
 
 # 打包后的前端（web/dist）由 API 同域服务；开发期走 Vite dev server。
+# SPA 路由（/quant 等）刷新时回退到 index.html；静态资源仅从 dist 白名单目录下发。
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 if WEB_DIST.is_dir():
-    app.mount("/", StaticFiles(directory=str(WEB_DIST), html=True), name="web")
+    _ASSETS = WEB_DIST / "assets"
+    if _ASSETS.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_ASSETS)), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa_fallback(full_path: str):
+        if full_path.startswith("api/") or ".." in full_path:
+            raise HTTPException(404, "接口不存在")
+        candidate = (WEB_DIST / full_path).resolve()
+        if str(candidate).startswith(str(WEB_DIST.resolve())) and candidate.is_file():
+            return FileResponse(candidate)
+        # 带扩展名的未知路径（.js/.json/伪文件）直接 404，不做 SPA 回退
+        if "." in Path(full_path).name:
+            raise HTTPException(404, "资源不存在")
+        return FileResponse(WEB_DIST / "index.html", media_type="text/html")

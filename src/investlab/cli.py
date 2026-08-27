@@ -210,6 +210,65 @@ def screener(track_id: str):
     console.print(table)
 
 
+@app.command("portfolio-optimize")
+def portfolio_optimize(
+    method: str = typer.Option("hrp", help="max_sharpe | min_volatility | hrp"),
+    max_weight: float = typer.Option(0.35, help="单标的权重上限"),
+):
+    """组合优化建议（PyPortfolioOpt）：目标权重 + 与当前持仓的调仓清单。"""
+    from investlab.quant import analytics
+    from investlab.quant.portfolio import build_portfolio_view, load_holdings
+
+    symbols = sorted({h["symbol"] for h in load_holdings()})
+    if len(symbols) < 2:
+        console.print("[red]至少需要2只持仓（请先完善 50 组合/holdings.csv）[/]")
+        raise typer.Exit(1)
+    from investlab.datasources.candles import get_candles
+
+    with console.status("拉取价格历史并优化…"):
+        prices = analytics.prices_frame({s: get_candles(s, days=260) for s in symbols})
+        result = analytics.optimize(prices, method=method, max_weight=max_weight)
+    if not result.get("ok"):
+        console.print(f"[red]{result.get('error')}[/]")
+        raise typer.Exit(1)
+    table = Table(title=f"建议权重 · {result['method']}")
+    table.add_column("标的")
+    table.add_column("目标权重")
+    for sym, w in result["weights"].items():
+        table.add_row(sym, f"{w:.1%}")
+    console.print(table)
+    console.print(f"[dim]{result['metrics'].get('method_note', '')} · {result['disclaimer']}[/]")
+
+    view = build_portfolio_view()
+    total_mv = sum(p.market_value or 0.0 for p in view.positions)
+    if total_mv > 0:
+        current = {p.symbol: round((p.market_value or 0.0) / total_mv * 100, 2)
+                   for p in view.positions}
+        suggestions = analytics.rebalance_suggestions(current, result["weights"])
+        if suggestions:
+            t2 = Table(title="调仓建议（|偏离|≥3%）")
+            for col in ("标的", "当前%", "目标%", "偏离", "动作"):
+                t2.add_column(col)
+            for s in suggestions:
+                t2.add_row(s["symbol"], str(s["current_pct"]), str(s["target_pct"]),
+                           f"{s['diff_pct']:+.1f}", s["action"])
+            console.print(t2)
+
+
+@app.command("notify-test")
+def notify_test():
+    """向已配置的 ntfy/Bark 通道发一条测试推送。"""
+    from investlab.notify import send_push
+
+    results = send_push("InvestLab 测试推送", "如果你收到这条消息，推送通道配置成功 ✅")
+    if not results:
+        console.print("[yellow]未配置任何推送通道（.env 中 INVESTLAB_NOTIFY_*）[/]")
+        return
+    for r in results:
+        ok = "[green]✓[/]" if r.ok else "[red]✗[/]"
+        console.print(f"{ok} {r.channel}: {r.detail}")
+
+
 @report_app.command("ingest")
 def report_ingest(path: str):
     """PDF 入库（收进 data/reports/library/<hash>/）。"""

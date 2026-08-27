@@ -99,7 +99,14 @@ class Settings:
     # ---- 行为开关 ----
     enable_quant_net: bool = True   # 是否允许量化模块联网取数（离线演示可关）
     report_vision_enabled: bool = True  # 券商报告图表走视觉模型
+    report_engine: str = "pymupdf"  # 研报解析引擎: pymupdf | mineru（需安装 MinerU）
     log_level: str = "INFO"
+
+    # ---- 推送通知（ntfy / Bark，均可选）----
+    notify_ntfy_topic: str = field(repr=False, default="")
+    notify_ntfy_server: str = "https://ntfy.sh"
+    notify_bark_url: str = field(repr=False, default="")
+    notify_allow_private: bool = False  # 允许推送到自建内网服务器
 
     @property
     def briefings_dir(self) -> Path:
@@ -204,7 +211,13 @@ def build_settings(environ: dict[str, str] | None = None) -> Settings:
         internal_secret=ev("INVESTLAB_INTERNAL_SECRET", "INTERNAL_SECRET"),
         enable_quant_net=_bool("INVESTLAB_QUANT_NET", default=True),
         report_vision_enabled=_bool("INVESTLAB_REPORT_VISION", default=True),
+        report_engine=ev("INVESTLAB_REPORT_ENGINE", default="pymupdf").lower(),
         log_level=ev("INVESTLAB_LOG_LEVEL", default="INFO"),
+        notify_ntfy_topic=ev("INVESTLAB_NOTIFY_NTFY_TOPIC"),
+        notify_ntfy_server=ev("INVESTLAB_NOTIFY_NTFY_SERVER",
+                              default="https://ntfy.sh"),
+        notify_bark_url=ev("INVESTLAB_NOTIFY_BARK_URL"),
+        notify_allow_private=_bool("INVESTLAB_NOTIFY_ALLOW_PRIVATE", default=False),
     )
     return settings
 

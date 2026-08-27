@@ -137,18 +137,75 @@ def parse_report(
     workdir = settings.reports_library_dir / rid
     pdf_path = Path(rec["pdf_path"])
 
-    # ---- 文本
+    # ---- 文本（可选 MinerU 引擎，失败自动回退 PyMuPDF）
     extracted = texmod.extract_pdf(pdf_path)
+    mineru_meta = None
+    if getattr(settings, "report_engine", "pymupdf") == "mineru":
+        try:
+            from . import mineru_engine
 
-    # ---- 表格抽取（券商报告的竞品对比/财务摘要多为线框表格）
-    try:
-        tables = texmod.extract_tables(pdf_path, max_tables=12)
-    except Exception as exc:
-        log.warning("表格抽取失败（跳过）: %s", exc)
-        tables = []
+            if mineru_engine.is_available():
+                mineru_result = mineru_engine.convert(pdf_path, workdir)
+                if mineru_result and mineru_result.get("sections"):
+                    pages_by_no: dict[int, list[str]] = {}
+                    for sec in mineru_result["sections"]:
+                        pages_by_no.setdefault(sec["page"], []).append(
+                            f"{sec['title']}\n{sec['text']}"
+                        )
+                    extracted = {
+                        "n_pages": max(pages_by_no) if pages_by_no else extracted["n_pages"],
+                        "pages": [
+                            {"page": p, "text": "\n\n".join(t)}
+                            for p, t in sorted(pages_by_no.items())
+                        ],
+                        "full_text": extracted["full_text"],
+                        "headings": [
+                            {"page": s["page"], "title": s["title"]}
+                            for s in mineru_result["sections"]
+                            if s["title"] != "正文"
+                        ][:60],
+                    }
+                    mineru_meta = {
+                        "tables": mineru_result.get("tables") or [],
+                        "images": mineru_result.get("images") or [],
+                    }
+                    log.info("MinerU 引擎完成：sections=%d tables=%d images=%d",
+                             len(mineru_result["sections"]),
+                             len(mineru_meta["tables"]), len(mineru_meta["images"]))
+            else:
+                log.warning("INVESTLAB_REPORT_ENGINE=mineru 但 magic-pdf 未安装，回退 PyMuPDF")
+        except Exception as exc:
+            log.warning("MinerU 引擎异常，回退 PyMuPDF: %s", exc)
 
-    # ---- 图表抽取
-    figs = figmod.extract_figures(pdf_path, max_figures=max_figures)
+    # ---- 表格抽取（MinerU 表格优先；否则 PyMuPDF 线框表格识别）
+    if mineru_meta and mineru_meta["tables"]:
+        tables = [
+            {"page": t["page"], "n_rows": 0, "n_cols": 0,
+             "caption": t.get("caption") or "", "markdown": t["markdown"],
+             "engine": "mineru"}
+            for t in mineru_meta["tables"][:12]
+        ]
+    else:
+        try:
+            tables = texmod.extract_tables(pdf_path, max_tables=12)
+        except Exception as exc:
+            log.warning("表格抽取失败（跳过）: %s", exc)
+            tables = []
+
+    # ---- 图表抽取（MinerU 图片优先；否则矢量/位图区域检测）
+    figs = []
+    if mineru_meta and mineru_meta["images"]:
+        for im in mineru_meta["images"]:
+            p = workdir / im["file"]
+            if p.is_file():
+                figs.append(figmod.Figure(
+                    page=im["page"], bbox=(0, 0, 0, 0), kind="raster",
+                    png=p.read_bytes(), caption=im.get("caption") or "",
+                ))
+                if len(figs) >= max_figures:
+                    break
+    if not figs:
+        figs = figmod.extract_figures(pdf_path, max_figures=max_figures)
     figures_rel: list[dict] = []
     for i, f in enumerate(figs, 1):
         rel = f"fig_{i:02d}_p{f.page}.png"
@@ -192,6 +249,7 @@ def parse_report(
             t["markdown"] = t["markdown"][:4000] + "\n…（截断）"
     rec.update({
         "status": "parsed" if (summary or not settings.llm_api_key) else "figures_ready",
+        "engine": "mineru" if mineru_meta else "pymupdf",
         "headings": extracted.get("headings", []),
         "summary": summary,
         "tables_meta": tables,

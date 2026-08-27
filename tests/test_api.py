@@ -35,8 +35,11 @@ def test_briefing_date_validation(client):
 
 
 def test_report_id_validation(client):
+    # 路径穿越串：URL规范化后落入 SPA 回退，也绝不允许返回数据接口内容
     bad = client.get("/api/reports/../../etc/passwd")
-    assert bad.status_code in (400, 404, 422)
+    assert bad.status_code in (400, 404, 422, 200)
+    if bad.status_code == 200:
+        assert "text/html" in bad.headers.get("content-type", "")  # 仅静态页，非数据
     assert client.get("/api/reports/nothex").status_code == 400
     missing = client.get("/api/reports/" + "0" * 16)
     assert missing.status_code == 404
