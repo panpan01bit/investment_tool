@@ -27,14 +27,26 @@ const MACRO_LABELS: [string, keyof NonNullable<MacroResp['items']>][] = [
 ];
 
 function normalizeNews(briefing: Briefing): { title: string; url: string; source?: string | null }[] {
-  return (briefing.news ?? []).map((n, i) => {
-    if (typeof n === 'string') return { title: n, url: '' };
-    return {
-      title: n.title || n.url || '(无标题)',
-      url: n.url ?? '',
-      source: n.source ?? null,
-    };
-  });
+  // API 里 news 是对象 {fresh:[], background:[], by_symbol:{}}；也兼容旧数组形态
+  const raw = briefing.news as unknown;
+  let list: unknown[] = [];
+  if (Array.isArray(raw)) {
+    list = raw;
+  } else if (raw && typeof raw === 'object') {
+    const obj = raw as { fresh?: unknown[]; background?: unknown[] };
+    list = [...(obj.fresh ?? []), ...(obj.background ?? [])];
+  }
+  return list
+    .map((n) => {
+      if (typeof n === 'string') return { title: n, url: '' };
+      const o = (n ?? {}) as { title?: string; link?: string; url?: string; source?: string };
+      return {
+        title: o.title || o.link || o.url || '(无标题)',
+        url: o.link || o.url || '',
+        source: o.source ?? null,
+      };
+    })
+    .filter((n) => n.title);
 }
 
 export default function BriefingPage() {
@@ -110,8 +122,16 @@ export default function BriefingPage() {
     }
   };
 
-  const macroSrc: (Briefing['macro'] & object) | MacroResp['items'] =
-    (briefing?.macro as Briefing['macro'] & object) ?? fallbackMacro?.items ?? {};
+  // 兼容两种形态：briefing.macro = {items:{...},text} 或直接是 items 对象
+  const briefingMacro = briefing?.macro as
+    | ({ items?: Record<string, number | null>; text?: string } & object)
+    | null
+    | undefined;
+  const macroSrc: Record<string, unknown> =
+    (briefingMacro?.items as Record<string, unknown>)
+    ?? (briefingMacro as Record<string, unknown>)
+    ?? (fallbackMacro?.items as Record<string, unknown>)
+    ?? {};
 
   const sectors = briefing?.sectors ?? briefing?.macro?.sectors ?? fallbackMacro?.sectors ?? [];
 
@@ -166,10 +186,12 @@ export default function BriefingPage() {
               <div className="facts-grid">
                 {MACRO_LABELS.map(([label, key]) => {
                   const v = (macroSrc as Record<string, unknown>)?.[key];
+                  // PMI 是景气指数（50 荣枯线）不是百分比，其余为 %
+                  const text = typeof v === 'number' ? (key === 'pmi' ? fmtNum(v, 1) : `${fmtNum(v, 2)}%`) : '—';
                   return (
                     <div className="fact" key={key}>
                       <div className="fact-k">{label}</div>
-                      <div className="fact-v mono">{typeof v === 'number' ? `${fmtNum(v, 2)}%` : '—'}</div>
+                      <div className="fact-v mono">{text}</div>
                     </div>
                   );
                 })}
@@ -188,8 +210,8 @@ export default function BriefingPage() {
                 </div>
               )}
 
-              {(briefing.macro_text || fallbackMacro?.text) && (
-                <p className="macro-text muted">{briefing.macro_text || fallbackMacro?.text}</p>
+              {(briefingMacro?.text || fallbackMacro?.text) && (
+                <p className="macro-text muted">{briefingMacro?.text || fallbackMacro?.text}</p>
               )}
 
               <NotePath path={briefing.obsidian_note} />

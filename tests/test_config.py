@@ -28,3 +28,12 @@ def test_token_status_masks_absence(isolated_env):
     st = isolated_env.token_status()
     assert st["llm"] is False
     assert st["vision"] is False
+
+
+def test_repo_root_points_at_project():
+    """回归：REPO_ROOT 必须是仓库根（含 pyproject.toml），否则 .env 不会被加载。"""
+    from pathlib import Path
+
+    assert (cfg.REPO_ROOT / "pyproject.toml").is_file()
+    assert cfg.REPO_ROOT.name == "investment_tool" or (cfg.REPO_ROOT / "src").is_dir()
+    assert isinstance(cfg.REPO_ROOT, Path)

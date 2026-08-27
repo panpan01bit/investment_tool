@@ -94,14 +94,30 @@ export interface BriefingNews {
   published?: string | null;
 }
 
+export interface BriefingNews {
+  title?: string | null;
+  url?: string | null;
+  link?: string | null;
+  source?: string | null;
+  published?: string | null;
+}
+
+export interface BriefingNewsGroup {
+  fresh?: BriefingNews[];
+  background?: BriefingNews[];
+  by_symbol?: Record<string, BriefingNews[]>;
+  error?: string;
+}
+
 export interface Briefing {
   date: string;
   macro?: BriefingMacroItem | null;
   macro_text?: string | null;
   positions?: BriefingPosition[] | null;
   sectors?: { name: string; change_pct: number }[] | null;
-  news?: (BriefingNews | string)[] | null;
+  news?: BriefingNewsGroup | (BriefingNews | string)[] | null;
   obsidian_note?: string | null;
+  briefing_json?: string | null;
   generated_at?: string | null;
 }
 

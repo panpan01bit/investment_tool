@@ -14,8 +14,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# 与仓库根目录相关的默认路径
-REPO_ROOT = Path(__file__).resolve().parents[3]
+# 与仓库根目录相关的默认路径（src/investlab/config.py → 上两级 = 仓库根）
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 ENV_FILE_CANDIDATES = [
     REPO_ROOT / ".env",
