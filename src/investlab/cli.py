@@ -468,6 +468,9 @@ def strategy_report():
     bench = cmp_res.get("bench_metrics", {})
     vault = new_vault()
     rel = "40 赛道研究/量化策略研究报告.md"
+    # 保护人工撰写/增补过的报告：已存在则写带日期的版本，不覆盖
+    if vault.note_exists(rel):
+        rel = f"40 赛道研究/量化策略研究报告 {fw['date']}.md"
     lines = [
         "---",
         f"日期: {fw['date']}",
