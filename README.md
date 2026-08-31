@@ -23,6 +23,7 @@ RSS 新闻      ─┼──▶│   个股深度研究 → Obsidian「20 个股
 | 📄 **券商报告解析** | PyMuPDF 文本+表格抽取；位图与矢量统计图区域自动定位导出 PNG；配置视觉模型后把柱状图/竞品对比图转成结构化数值表（不可读的字段留空、绝不编造） |
 | 📝 **Obsidian 集成** | 所有产出写入你的 Vault（听涛晨报 / 个股研究 / 报告库），Dataview 友好的 frontmatter 与索引 |
 | 🔍 **搜索聚合** | DuckDuckGo 免费内置，可选叠加 Tavily；去重、来源多样性加权、`[web]` 徽章与行情数据严格区分 |
+| 📣 **社媒热度** | 跨源舆情脉冲（Reddit / Hacker News / Polymarket 赔率 / StockTwits 情绪 / GitHub 活动），按真实互动量打分 0-100，每源独立降级并如实报告状态（灵感致谢 [last30days-skill](https://github.com/mvanhorn/last30days-skill)）；`investlab pulse "liquid cooling"` |
 | 📈 **量化** | 纯 pandas 实现的指标库（MA/MACD/RSI/KDJ/BOLL/OBV/ATR/波动率/回撤）、规则化信号引擎（-100~100 分+理由）、轻量向量化回测（均线交叉/RSI回归/突破）、组合视图、赛道筛选 |
 | 🎛 **绩效与组合优化** | quantstats 绩效指标+HTML 报告（一键存入 Obsidian）；PyPortfolioOpt 建议权重（HRP/最大夏普/最小波动）与调仓清单 |
 | 📟 **专业K线** | klinecharts 蜡烛图（A股配色：涨红跌绿）+ MA/VOL/MACD/RSI 四联副图，研究/信号页即点即看 |

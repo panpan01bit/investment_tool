@@ -104,13 +104,18 @@ def http_get(
     raise last_exc  # type: ignore[misc]
 
 
-def http_get_json(url: str, *, default=None, **kw):
-    """GET 并解析 JSON；失败返回 default（数据源回退链用）。"""
+def http_get_json(url: str, *, default=None, strict: bool = False, **kw):
+    """GET 并解析 JSON。默认失败返回 default（数据源回退链用）；
+    strict=True 时失败/非2xx 抛 RuntimeError，供需要区分
+    「无结果」与「不可达」的调用方使用（如社媒热度 source_status）。"""
     try:
         resp = http_get(url, **kw)
         resp.raise_for_status()
         return resp.json()
-    except (requests.RequestException, ValueError):
+    except (requests.RequestException, ValueError) as exc:
+        if strict:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            raise RuntimeError(f"HTTP {status or 'ERR'}") from exc
         return default
 
 

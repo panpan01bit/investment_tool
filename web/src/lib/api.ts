@@ -205,6 +205,22 @@ export interface TrackRef {
   maturity?: string | null;
 }
 
+export interface SocialPulse {
+  query?: string;
+  heat?: number | null;
+  heat_label?: string;
+  items?: {
+    source: string;
+    title: string;
+    url: string;
+    engagement: number;
+    metric: string;
+    created?: string;
+    extra?: Record<string, unknown>;
+  }[];
+  source_status?: Record<string, string>;
+}
+
 export interface ResearchFacts {
   quote?: {
     name?: string | null;
@@ -215,6 +231,7 @@ export interface ResearchFacts {
   technical?: Record<string, unknown> | null;
   fundamentals?: Record<string, unknown> | null;
   tracks?: TrackRef[];
+  social?: SocialPulse | null;
 }
 
 export interface PositionAdvice {
@@ -235,7 +252,7 @@ export interface Verdict {
 export interface ResearchResult {
   symbol: string;
   facts: ResearchFacts;
-  verdict: Verdict;
+  verdict: Verdict | null;   // 未配置 LLM 时为 null
   obsidian_note?: string | null;
 }
 

@@ -266,6 +266,29 @@ def signals(symbol: str):
     return d
 
 
+@app.get("/api/social", dependencies=[Depends(require_auth)])
+def social_pulse_route(
+    query: str = "",
+    symbol: str = "",
+    days: int = 30,
+):
+    """跨源舆情热度（Reddit/HN/Polymarket/StockTwits/GitHub）。"""
+    from ..datasources.social import social_pulse
+
+    query = (query or "").strip()
+    symbol = (symbol or "").strip()
+    if not query and not symbol:
+        raise HTTPException(400, "需要 query 或 symbol 之一")
+    days = max(7, min(int(days), 90))
+    if query and symbol:
+        raise HTTPException(400, "query 与 symbol 只传其一")
+    if symbol:
+        from ..datasources.social import pulse_for_symbol
+
+        return pulse_for_symbol(symbol)
+    return social_pulse(query, days=days)
+
+
 @app.get("/api/research/facts/{symbol}", dependencies=[Depends(require_auth)])
 def research_facts(symbol: str):
     return gather_facts(symbol, use_search=True)

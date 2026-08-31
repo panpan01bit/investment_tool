@@ -109,7 +109,8 @@ export default function ResearchPage() {
 /* ------------------------------------------------------------------ */
 
 function ResearchView({ r }: { r: ResearchResult }) {
-  const v = r.verdict;
+  // 未配置 LLM 时 verdict 为 null —— 兜底空对象，页面仍渲染事实数据区
+  const v = (r.verdict ?? {}) as NonNullable<ResearchResult['verdict']>;
   const quote = r.facts?.quote ?? {};
   const tech = (r.facts?.technical ?? {}) as Record<string, unknown>;
   const fun = (r.facts?.fundamentals ?? {}) as Record<string, unknown>;
@@ -235,6 +236,44 @@ function ResearchView({ r }: { r: ResearchResult }) {
             ) : (
               <EmptyState>未匹配到二级/三级赛道</EmptyState>
             )}
+          </Card>
+
+          <Card title="社媒热度 · SOCIAL PULSE（近30天真实互动量）">
+            {(() => {
+              const so = r.facts?.social as
+                | { heat?: number | null; heat_label?: string; items?: { source: string; title: string; url: string; engagement: number; metric: string; created?: string }[]; source_status?: Record<string, string> }
+                | undefined;
+              if (!so) return <EmptyState>本次分析未包含社媒数据</EmptyState>;
+              const heat = typeof so.heat === 'number' ? so.heat : null;
+              return (
+                <>
+                  <div className="facts-grid facts-wide">
+                    <div className="fact">
+                      <div className="fact-k">综合热度</div>
+                      <div className="fact-v mono">{heat != null ? `${heat} · ${so.heat_label ?? ''}` : '无数据'}</div>
+                    </div>
+                    <div className="fact">
+                      <div className="fact-k">源状态</div>
+                      <div className="fact-v mono small">
+                        {Object.entries(so.source_status ?? {}).map(([k, s]) => `${k}:${s}`).join('  ') || '—'}
+                      </div>
+                    </div>
+                  </div>
+                  {(so.items ?? []).length > 0 && (
+                    <ul className="news-list" style={{ marginTop: 8 }}>
+                      {(so.items ?? []).slice(0, 6).map((it, i) => (
+                        <li key={i}>
+                          {it.url
+                            ? <a href={it.url} target="_blank" rel="noreferrer"><span className="news-title">[{it.source}] {it.title}</span></a>
+                            : <span className="news-title plain">[{it.source}] {it.title}</span>}
+                          <span className="news-src muted">{it.engagement.toLocaleString()} {it.metric}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              );
+            })()}
           </Card>
 
           <Card title="仓位建议 · POSITION ADVICE">

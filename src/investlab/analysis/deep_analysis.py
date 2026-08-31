@@ -48,7 +48,9 @@ def gather_facts(symbol: str, *, use_search: bool = True) -> dict:
     facts["tracks"] = tracks_for_symbol(s)
     facts["related_reports"] = _related_reports(s)
 
-    if use_search:
+    # 联网增强项（搜索 + 社媒热度）相互独立，并行执行避免超时叠加；
+    # 各自失败静默降级，只记录缺口不阻塞分析。
+    def _web() -> None:
         try:
             from ..search import format_hits_context, search
 
@@ -61,6 +63,26 @@ def gather_facts(symbol: str, *, use_search: bool = True) -> dict:
         except Exception as exc:
             log.debug("搜索失败（跳过 web_context）: %s", exc)
             facts["web_context"] = ""
+
+    def _social() -> None:
+        # Reddit/HN/Polymarket/StockTwits/GitHub 免费源，30 分钟缓存；
+        # 全部失败时 items 为空并如实记录 source_status
+        try:
+            from ..datasources.social import pulse_for_symbol
+
+            facts["social"] = pulse_for_symbol(s)
+        except Exception as exc:
+            log.debug("社媒热度失败（跳过）: %s", exc)
+
+    if use_search:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(fn) for fn in (_web, _social)]
+            for f in futures:
+                f.result()
+    else:
+        _social()
     return facts
 
 

@@ -328,6 +328,36 @@ def search(query: str, max_results: int = typer.Option(8)):
 
 
 @app.command()
+def pulse(
+    query: str = typer.Argument("", help="英文关键词，如 'liquid cooling'"),
+    symbol: str = typer.Option("", help="或直接传标的：NVDA / 00700.HK"),
+    days: int = typer.Option(30, min=7, max=90),
+):
+    """跨源舆情热度（Reddit/HN/Polymarket/StockTwits/GitHub，真实互动量打分）。"""
+    from investlab.datasources.social import pulse_for_symbol, social_pulse
+
+    with console.status("跨源检索中…"):
+        res = pulse_for_symbol(symbol) if symbol else social_pulse(query, days=days)
+    heat = res.get("heat")
+    if heat is None:
+        console.print(f"[yellow]热度：无数据[/] 状态: {res.get('source_status')}")
+        return
+    label = res.get("heat_label", "")
+    color = {"白热化": "red", "火热": "bright_red", "升温": "yellow"}.get(label, "cyan")
+    console.print(f"[bold {color}]热度 {heat} · {label}[/]  "
+                  f"[dim]查询: {res.get('query')} / {days}天[/]")
+    for src, st in res.get("source_status", {}).items():
+        console.print(f"  {src}: {st}")
+    table = Table(title="互动量 Top")
+    for col in ("源", "内容", "互动", "日期"):
+        table.add_column(col)
+    for it in res.get("items", [])[:12]:
+        table.add_row(it["source"], it["title"][:52],
+                      f"{it['engagement']:,} {it['metric']}", it.get("created", ""))
+    console.print(table)
+
+
+@app.command()
 def chat(question: str):
     """基于当日简报+联网搜索的追问。"""
     from investlab.analysis.chat import chat as do_chat
