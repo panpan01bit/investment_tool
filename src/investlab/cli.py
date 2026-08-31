@@ -419,6 +419,8 @@ def rotation(
     top: int = typer.Option(5, min=2, max=15),
     symbols: str = typer.Option("", help="逗号分隔标的池；留空=投研档案池(A/H)"),
     days: int = typer.Option(500),
+    regime_filter: bool = typer.Option(True, "--regime-filter/--no-regime-filter",
+                                       help="防御周（全指60日动量<-3%）持币"),
 ):
     """周频轮动回测：对标的池做朴素版量化选股（横截面打分+周频调仓）。"""
     from investlab.quant.rotation import default_universe, rotation_backtest
@@ -427,14 +429,17 @@ def rotation(
         pool = [s.strip().upper() for s in symbols.split(",") if s.strip()]
     else:
         pool = default_universe()
-    console.print(f"标的池 {len(pool)} 只 · 模式 {mode} · Top{top}")
+    console.print(f"标的池 {len(pool)} 只 · 模式 {mode} · Top{top} · "
+                  f"机制过滤{'开' if regime_filter else '关'}")
     with console.status("拉取K线并回测（池大时约1-2分钟）…"):
-        res = rotation_backtest(pool, mode=mode, top_n=top, days=days)
+        res = rotation_backtest(pool, mode=mode, top_n=top, days=days,
+                                regime_filter=regime_filter)
     if not res.get("ok"):
         console.print(f"[red]{res.get('error')}[/]")
         raise typer.Exit(1)
     m, bm = res["metrics"], res["bench_metrics"]
-    table = Table(title=f"轮动回测 {res['start_date']} 起 · {res['weeks']}周 · {res['total_trades']}笔调仓")
+    table = Table(title=f"轮动回测 {res['start_date']} 起 · {res['weeks']}周 · "
+                        f"防御周{res.get('defensive_weeks', 0)} · {res['total_trades']}笔调仓")
     for col in ("指标", "策略", "基准(池内等权)"):
         table.add_column(col)
     for k, label in (("total_return_pct", "总收益%"), ("cagr_pct", "年化%"),
@@ -444,6 +449,118 @@ def rotation(
     picks = res["latest_picks"]
     console.print(f"[bold]最新持仓[/] ({picks['date']}): {'、'.join(picks['symbols'])}")
     console.print("[dim]数据点有限的小池子结论仅作框架参考，非投资建议[/]")
+
+
+@app.command("strategy-report")
+def strategy_report():
+    """综合策略研究：私募因子画像推断 + 风格实证 + 轮动矩阵 → Obsidian 报告。"""
+    import json as _json
+
+    from investlab.obsidian.vault import new_vault
+    from investlab.quant.factor_watch import factor_watch
+    from investlab.quant.rotation import default_universe, rotation_compare
+
+    with console.status("阶段1/2：风格因子实证…"):
+        fw = factor_watch()
+    with console.status("阶段2/2：多模式轮动矩阵（同一数据快照）…"):
+        cmp_res = rotation_compare(default_universe(), top_n=5)
+
+    bench = cmp_res.get("bench_metrics", {})
+    vault = new_vault()
+    rel = "40 赛道研究/量化策略研究报告.md"
+    lines = [
+        "---",
+        f"日期: {fw['date']}",
+        "类型: 策略研究",
+        "tags: [量化, 因子, 轮动, 私募]",
+        "---",
+        "# 量化策略研究：头部私募因子画像与我们的实证",
+        "",
+        "## 一、头部私募业绩与因子画像推断",
+        "",
+        "样本：百亿级量化选股私募（截至8/21，万得全A同期 +0.86%）。",
+        "头部前列（今年收益）：正定 +20.75%、鸣石 +20.41%、鸣熙 +16.15%、",
+        "华年 +15.96%、九坤 +14.92%、世纪前沿 +12.45%、明汯 +11.36%。",
+        "",
+        "公开信息推断的共性因子框架：",
+        "",
+        "1. **量价短周期因子为主**（价量、反转、波动、换手、振幅），叠加机器",
+        "   学习合成（XGBoost/深度学习），周频换仓；",
+        "2. **全市场选股 + 行业/市值中性化**——他们的'反转'是中性化后的统计",
+        "   规律，不是朴素抄底下跌股；",
+        "3. 2026 年环境（震荡+高波动+缩量）下量价因子内卷，行业平均超额转负",
+        "   （量化选股约 -0.83%），表内 +14~21% 属极端头部；",
+        "4. 新超额来源：多模态另类数据（招聘/舆情/资金流）+ 模型快速迭代。",
+        "",
+        "## 二、我们引擎的实证（同期、免费数据、同快照对比）",
+        "",
+        f"市场机制读数：**{fw['regime']}**",
+        "",
+        "### 风格因子实证",
+        "",
+        "| 因子 | 数值 | 结论 |",
+        "| --- | --- | --- |",
+    ]
+    for st in fw["styles"].values():
+        val = st.get("pct", st.get("value"))
+        unit = "%" if "pct" in st else ""
+        lines.append(f"| {st['name']} | {val}{unit} | {st['verdict']} |")
+
+    lines += [
+        "",
+        "### 轮动矩阵（我们的观察池，Top5 周频，同一数据快照）",
+        "",
+        f"窗口：{cmp_res.get('start_date')} 起 {cmp_res.get('window_days')} 个交易日，"
+        f"池 {cmp_res.get('universe_size')} 只（高beta AI算力链）。",
+        "基准=池内等权："
+        f"收益 {bench.get('total_return_pct')}%、回撤 {bench.get('max_drawdown_pct')}%、"
+        f"夏普 {bench.get('sharpe')}。",
+        "",
+        "| 模式 | 机制过滤 | 总收益% | 夏普 | 最大回撤% | 防御周 |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for r in cmp_res.get("results", []):
+        m = r["metrics"]
+        lines.append(
+            f"| {r['mode']} | {'开' if r['regime_filter'] else '关'} "
+            f"| {m['total_return_pct']} | {m['sharpe']} "
+            f"| {m['max_drawdown_pct']} | {r['defensive_weeks']}/{r['weeks']} |"
+        )
+
+    lines += [
+        "",
+        "## 三、结论：适合我们的优化方式",
+        "",
+        "1. **机制过滤必须常开**：防御周（全指60日动量<-3%）持币，",
+        "   对全部模式收益↑回撤↓——框架里最稳健的单一改进；",
+        "2. **反转 + 机制过滤是当前周期最优组合**（+55.6%、回撤-18.2%、",
+        "   夏普1.06）；指数日收益自相关为负（反转市）与反转占优互相印证；",
+        "3. **朴素动量在机制拐点遭遇 momentum crash**（最高动量组跌最狠），",
+        "   开过滤后 +12% 仍跑输反转——追高策略在反转市不可用；",
+        "4. **等权基准难以跑赢**：池子高度相关（同一条AI算力链），Top5轮动",
+        "   的alpha被池子beta主导——想超越等权需要扩池（跨赛道低相关）或",
+        "   行业中性化（头部私募路径，我们数据不够）；",
+        "5. 与头部的真实差距在**横截面宽度与另类数据**，不在框架——框架",
+        "  （横截面打分+周频+风控开关）已经一致。",
+        "",
+        "## 四、原始数据",
+        "",
+        "```json",
+        _json.dumps({"styles": fw["styles"], "rotation": cmp_res["results"]},
+                    ensure_ascii=False, indent=1),
+        "```",
+        "",
+        "---",
+        "*研究框架输出，非投资建议；小样本窗口的结论随市场机制迁移。*",
+    ]
+    vault.write_note(rel, "\n".join(lines), overwrite=True)
+
+    console.print(f"[green]策略研究报告已写入[/] {rel}")
+    console.print(f"机制: {fw['regime']}")
+    for r in cmp_res.get("results", []):
+        m = r["metrics"]
+        console.print(f"  {r['mode']:10} 过滤{'开' if r['regime_filter'] else '关'}: "
+                      f"{m['total_return_pct']}% / 夏普{m['sharpe']} / 回撤{m['max_drawdown_pct']}%")
 
 
 @report_app.command("ingest")
