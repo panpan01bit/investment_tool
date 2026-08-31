@@ -105,6 +105,18 @@ def run_daily(*, use_cache: bool = True, fetch_news: bool = True) -> dict:
     narrative = llm_narrative(payload)
     note_path = render_note(_vault := new_vault(), payload, narrative)
 
+    # ---------- 社媒热度快照归档（point-in-time 数据积累，供 tilt/因子研究）----------
+    try:
+        from ..datasources.news import load_watchlist
+        from ..datasources.social import record_snapshots
+
+        wl = load_watchlist()
+        targets = list(wl.get("tickers") or [])[:20]
+        if targets:
+            record_snapshots(targets, use_cache=True)
+    except Exception as exc:
+        log.debug("社媒快照归档失败（不影响晨报）: %s", exc)
+
     # ---------- 手机推送（ntfy/Bark；可在投研档案 briefing.push_on_complete 关闭）----------
     push_enabled = True
     try:

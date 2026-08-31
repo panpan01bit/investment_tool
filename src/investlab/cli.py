@@ -451,6 +451,38 @@ def rotation(
     console.print("[dim]数据点有限的小池子结论仅作框架参考，非投资建议[/]")
 
 
+@app.command("social-factor")
+def social_factor_cmd(
+    query: str = typer.Argument(..., help="主题关键词（英文，HN 社区），如 NVIDIA"),
+    symbols: str = typer.Option("", help="逗号分隔主题池；留空=投研档案池(A/H)"),
+    weeks: int = typer.Option(78, min=30, max=200),
+    top: int = typer.Option(5, min=2, max=15),
+):
+    """社媒关注度因子回测：HN 历史提及量 → 主题池前瞻收益预测力检验。"""
+    from investlab.quant.rotation import default_universe
+    from investlab.quant.social_factor import analyze_social_factor
+
+    pool = ([s.strip().upper() for s in symbols.split(",") if s.strip()]
+            or default_universe())
+    with console.status(f"回溯 {weeks} 周 HN 提及量并对齐池收益…"):
+        res = analyze_social_factor(query, pool, weeks=weeks)
+    if not res.get("ok"):
+        console.print(f"[red]{res.get('error')}[/]")
+        raise typer.Exit(1)
+    p = res["predictive"]
+    t3 = res["tercile_next_week_ret_pct"]
+    console.print(f"[bold]主题 {query}[/] · 池 {res['pool_size']} 只 · {res['n_weeks']} 周")
+    console.print(f"预测IC(热度→下周收益): 秩相关 {p['ic_level_spearman']} | "
+                  f"加速IC {p['ic_accel_spearman']} | 同期相关 {p['corr_same_period']} | "
+                  f"正交残差IC {p.get('orth_ic_residual')}")
+    console.print(f"三分位下周收益: 低关注 {t3['low_attention']}% / "
+                  f"中 {t3['mid']}% / 高关注 {t3['high_attention']}%")
+    st, bh = res["strategy_attention_timing"], res["buyhold"]
+    console.print(f"关注度择时: {st['total_return_pct']}% (回撤 {st['max_drawdown_pct']}%) "
+                  f"vs 买入持有 {bh['total_return_pct']}% (回撤 {bh['max_drawdown_pct']}%)")
+    console.print(f"[dim]{res['note']}[/]")
+
+
 @app.command("strategy-report")
 def strategy_report():
     """综合策略研究：私募因子画像推断 + 风格实证 + 轮动矩阵 → Obsidian 报告。"""
