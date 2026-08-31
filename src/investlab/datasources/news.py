@@ -43,12 +43,29 @@ def watchlist_path() -> Path:
 
 
 def load_watchlist() -> dict:
+    """优先级：data/watchlist.json（用户管理）→ 投研档案种子 → 持仓文件 → 内置默认。"""
     p = watchlist_path()
     if p.is_file():
         try:
             return json.loads(p.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            log.warning("watchlist.json 损坏，使用默认")
+            log.warning("watchlist.json 损坏，使用投研档案默认")
+
+    # 投研档案（profile）提供与研究主线匹配的种子
+    try:
+        from ..profiles import load_profile
+
+        prof = load_profile()
+        wl = {
+            "tickers": list(prof.get("watchlist_seed") or []),
+            "companyKeywords": dict(prof.get("company_keywords") or {}),
+            "macroKeywords": list(prof.get("macro_keywords") or []),
+        }
+        if wl["tickers"] or wl["companyKeywords"] or wl["macroKeywords"]:
+            return wl
+    except Exception as exc:
+        log.debug("从投研档案生成 watchlist 失败: %s", exc)
+
     # 从 Obsidian 组合目录的 holdings.csv 兜底生成 tickers
     wl = json.loads(json.dumps(DEFAULT_WATCHLIST))
     try:
@@ -108,12 +125,21 @@ def fetch_all(sources: list[dict] | None = None, *, per_source_limit: int = 40) 
 
 
 def _load_sources_config() -> list[dict]:
+    """RSS 源优先级：data/sources.config.json（用户管理）→ 投研档案 → 内置默认。"""
     cfg = get_settings().data_dir / "sources.config.json"
     if cfg.is_file():
         try:
             return json.loads(cfg.read_text(encoding="utf-8")) or DEFAULT_SOURCES
         except ValueError:
             pass
+    try:
+        from ..profiles import load_profile
+
+        sources = load_profile().get("news_sources") or []
+        if sources:
+            return sources
+    except Exception as exc:
+        log.debug("从投研档案读取新闻源失败: %s", exc)
     return DEFAULT_SOURCES
 
 

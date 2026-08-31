@@ -108,6 +108,9 @@ class Settings:
     notify_bark_url: str = field(repr=False, default="")
     notify_allow_private: bool = False  # 允许推送到自建内网服务器
 
+    # ---- 投研档案（研究框架与使用习惯；API 密钥与此分离，见 .env.example）----
+    profile: str = ""  # 内置名（ai-production/template）或自定义 JSON 绝对路径
+
     @property
     def briefings_dir(self) -> Path:
         return self.data_dir / "briefings"
@@ -218,6 +221,7 @@ def build_settings(environ: dict[str, str] | None = None) -> Settings:
                               default="https://ntfy.sh"),
         notify_bark_url=ev("INVESTLAB_NOTIFY_BARK_URL"),
         notify_allow_private=_bool("INVESTLAB_NOTIFY_ALLOW_PRIVATE", default=False),
+        profile=ev("INVESTLAB_PROFILE", default=""),
     )
     return settings
 

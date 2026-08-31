@@ -32,36 +32,57 @@ RSS 新闻      ─┼──▶│   个股深度研究 → Obsidian「20 个股
 | 📲 **手机推送** | 晨报生成后经 ntfy（可自托管）或 Bark(iOS) 推送通知——飞书推送的本地化替代 |
 | 🖥 **Web 控制台** | React 全新前端：简报 / 持仓 / 研究 / 量化 / 报告库 / 问答 / 设置 |
 
-## 快速开始
+## 快速开始（新用户 3 步）
 
 需要 Python ≥3.10 与 Node ≥20。
 
 ```bash
-# 1) 安装后端（建议装上 akshare 以启用 A股数据）
-pip install -e ".[cn,dev]"     # 或 uv pip install -e ".[cn,dev]"
+# 1) 安装（建议装上 akshare 以启用 A股数据）
+pip install -e ".[cn,dev]"
 
-# 2) 配置密钥（全部走环境变量，仓库零凭据）
-cp .env.example .env           # 至少填 INVESTLAB_LLM_API_KEY
-                               # 并把 INVESTLAB_OBSIDIAN_VAULT 指到你的 Vault
+# 2) 一键初始化：自动生成你的 .env（API 专用文件）+ Obsidian Vault + 投研档案 + 观察清单
+investlab init
 
-# 3) 初始化 Obsidian 结构 + 体检
-investlab init-vault
+# 3) 编辑 .env 填入唯一必填项 INVESTLAB_LLM_API_KEY，然后体检+开跑
 investlab doctor
+investlab daily        # 今日晨报 → Obsidian
+investlab serve        # Web 控制台 http://127.0.0.1:8300
+```
 
-# 4) 用一次就上手
-investlab daily                          # 今日听涛晨报 → Vault
+**API 密钥只放 `.env`**（模板见 `.env.example`，已被 gitignore，永不入库）。
+唯一必填的是 `INVESTLAB_LLM_API_KEY`；Tushare/Tavily/FRED/GITHUB_TOKEN/手机推送均为可选增强，注释里有申请地址。
+
+更多命令：
+
+```bash
 investlab analyze 300308                 # 个股深度分析（中际旭创）
 investlab report ingest ~/Downloads/x.pdf
 investlab report parse <报告id> --vision # 图表提取+视觉结构化
 investlab signals 002837.SZ              # 英维克技术信号
 investlab screener optical-module        # 光模块赛道观察矩阵
 investlab portfolio-optimize --method hrp # 组合优化建议+调仓清单
+investlab pulse "liquid cooling"          # 跨源舆情热度
 investlab notify-test                    # 测试 ntfy/Bark 推送
 investlab chat "液冷板块今天为什么涨？"    # 追问
 investlab serve                          # Web 控制台 http://127.0.0.1:8300
 ```
 
 前端开发模式（改 UI 时用）：`cd web && npm install && npm run dev`（Vite 会代理 `/api` 到 8300）。生产用法直接 `npm run build`，`investlab serve` 同域托管 `web/dist`。
+
+## 供他人使用 / 换自己的投研主线
+
+仓库内置的赛道框架与示例档案是**作者的投研主线**（AI 生产端普及，见 `src/investlab/profiles/ai-production.json`）。fork 之后换你自己的主线**不需要改代码**，三处个性化文件全部与你隔离、不入库：
+
+| 想定制什么 | 放哪里 | 说明 |
+| --- | --- | --- |
+| **你的 API 密钥** | `.env`（`investlab init` 从 `.env.example` 自动生成） | 唯一放密钥的地方 |
+| **研究主线/关注链/观察池/新闻源** | `data/profile.json`（`investlab init` 生成副本） | 可覆盖 `sector_focus` / `watchlist_seed` / `macro_keywords` / `company_keywords` / `news_sources` / `briefing` 等 |
+| **赛道 taxonomy** | `src/investlab/tracks/taxonomy.json` | 换行业主线时整体替换（18+8 赛道/代表标的/验证指标） |
+| **RSS 新闻源** | `data/sources.config.json`（优先于档案） | 完全自定义 |
+
+档案切换：`.env` 里 `INVESTLAB_PROFILE=ai-production | template | /path/to/your.json`，或临时 `investlab profile <名字>` 查看/切换。合并优先级：`data/profile.json`（你的）＞ 内置档案 ＞ 代码默认。
+
+> Fork 成你自己的投研工作室只需动三处：`.env`（密钥）+ `data/profile.json`（框架）+ `taxonomy.json`（赛道数据），欢迎把通用化改进 PR 回来。
 
 ## 密钥与安全
 

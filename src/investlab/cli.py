@@ -30,8 +30,64 @@ console = Console()
 
 
 @app.command()
+def init():
+    """新用户一键初始化：.env（用户API专用文件）+ Vault + 投研档案 + 观察清单。"""
+    import shutil
+
+    from investlab.config import ENV_FILE_CANDIDATES, REPO_ROOT, get_settings
+
+    # 1) 用户 API 环境：.env 缺失时从模板复制（密钥由用户自行填写，永不入库）
+    env_file = ENV_FILE_CANDIDATES[0]
+    if not env_file.is_file():
+        template = REPO_ROOT / ".env.example"
+        if template.is_file():
+            shutil.copy2(template, env_file)
+            console.print(f"[green]已创建[/] {env_file}（复制自 .env.example）")
+            console.print("[yellow]下一步：编辑 .env 填入 INVESTLAB_LLM_API_KEY（唯一必填），其余可选[/]")
+        else:
+            console.print(f"[red]未找到模板 {template}[/]")
+    else:
+        console.print(f".env 已存在: {env_file}")
+
+    # 2) 投研档案：生成用户个人定制文件 data/profile.json（不入库）
+    s = get_settings(refresh=True)
+    user_profile = s.data_dir / "profile.json"
+    if not user_profile.is_file():
+        from investlab.profiles import DEFAULT_PROFILE, _builtin_path
+
+        bp = _builtin_path(DEFAULT_PROFILE)
+        if bp:
+            user_profile.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(bp, user_profile)
+            console.print(f"[green]已生成用户投研档案[/] {user_profile}")
+            console.print("[dim]编辑它可定制主线/关注链/关键词/新闻源；API 密钥仍放 .env，两者分离[/]")
+
+    # 3) Vault + 观察清单
+    init_vault()
+    from investlab.datasources.news import save_watchlist, watchlist_path
+    from investlab.profiles import seed_watchlist_from_profile
+
+    if not watchlist_path().is_file():
+        save_watchlist(seed_watchlist_from_profile())
+        wl = load_watchlist_safe()
+        console.print(f"[green]观察清单已按投研档案播种[/] "
+                      f"({len(wl.get('tickers') or [])} 只代码, "
+                      f"{len(wl.get('macroKeywords') or [])} 个宏观关键词)")
+    console.print("\n[bold]完成！常用命令[/]")
+    console.print("  investlab doctor   # 体检（检查必填的 LLM key）")
+    console.print("  investlab daily    # 生成今日晨报")
+    console.print("  investlab serve    # 启动 Web 控制台")
+
+
+def load_watchlist_safe():
+    from investlab.datasources.news import load_watchlist
+
+    return load_watchlist()
+
+
+@app.command()
 def init_vault():
-    """初始化 Obsidian Vault 目录结构与首页。"""
+    """仅初始化 Obsidian Vault 目录结构与首页。"""
     from investlab.obsidian.vault import new_vault
 
     v = new_vault()
@@ -41,12 +97,37 @@ def init_vault():
         "- `10 听涛日报` — 每日晨报（自动生成）\n"
         "- `20 个股研究` — 个股深度分析（investlab analyze 自动写入）\n"
         "- `30 报告库` — 券商报告解析结果\n"
-        "- `40 赛道研究` — AI 生产端主线赛道框架与跟踪\n"
+        "- `40 赛道研究` — 赛道框架与跟踪（由投研档案驱动）\n"
         "- `50 组合/holdings.csv` — 持仓文件（symbol,name,quantity,cost_price,currency,category,run）\n",
         overwrite=True,
     )
     console.print(f"[green]Vault 已就绪[/] {v.path}")
     console.print(f"首页: {home}")
+
+
+@app.command("profile")
+def profile_cmd(
+    name: str = typer.Argument("", help="留空=查看当前；或设为内置名/JSON绝对路径"),
+):
+    """查看或切换投研档案（研究框架与使用习惯；API 密钥在 .env，两者分离）。"""
+    import json as _json
+    import os as _os
+
+    from investlab.config import get_settings
+    from investlab.profiles import builtin_profiles, profile_summary
+
+    if name:
+        if not (name in builtin_profiles() or _os.path.isabs(name)):
+            console.print(f"[red]{name} 不是内置档案也不是绝对路径[/] 内置: {builtin_profiles()}")
+            raise typer.Exit(1)
+        _os.environ["INVESTLAB_PROFILE"] = name
+        s = get_settings(refresh=True)
+        s.profile = name
+        console.print(f"[green]已切换到档案 {name}[/]（永久生效请写入 .env：INVESTLAB_PROFILE={name}）")
+
+    console.print(_json.dumps(profile_summary(), ensure_ascii=False, indent=2))
+    console.print(f"[dim]内置档案: {builtin_profiles()} · "
+                  "个人定制: data/profile.json（不入库）[/]")
 
 
 @app.command()

@@ -127,6 +127,7 @@ def settings_status():
     s = get_settings()
     st = s.token_status()
     from .. import notify
+    from ..profiles import profile_summary
     from ..reports import mineru_engine
 
     return {
@@ -138,6 +139,7 @@ def settings_status():
         "report_engine": s.report_engine,
         "mineru_available": mineru_engine.is_available(),
         "notify": notify.status(),
+        "profile": profile_summary(),
     }
 
 

@@ -105,13 +105,21 @@ def run_daily(*, use_cache: bool = True, fetch_news: bool = True) -> dict:
     narrative = llm_narrative(payload)
     note_path = render_note(_vault := new_vault(), payload, narrative)
 
-    # ---------- 手机推送（ntfy/Bark，未配置则静默跳过）----------
+    # ---------- 手机推送（ntfy/Bark；可在投研档案 briefing.push_on_complete 关闭）----------
+    push_enabled = True
     try:
-        from .. import notify
+        from ..profiles import load_profile
 
-        notify.notify_briefing(payload, note_path)
-    except Exception as exc:
-        log.debug("推送失败（不影响晨报）: %s", exc)
+        push_enabled = bool((load_profile().get("briefing") or {}).get("push_on_complete", True))
+    except Exception:
+        pass
+    if push_enabled:
+        try:
+            from .. import notify
+
+            notify.notify_briefing(payload, note_path)
+        except Exception as exc:
+            log.debug("推送失败（不影响晨报）: %s", exc)
 
     return {
         "date": date_str,
