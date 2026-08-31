@@ -340,12 +340,6 @@ def _f(v):
         return None
 
 
-def json_loads(s: str):
-    import json
-
-    return json.loads(s)
-
-
 def pulse_for_symbol(symbol: str) -> dict:
     """标的 → 社媒查询构造：美股/港股用裸代码（英文社区标题常用 ticker，
     填充词反而拉低相关性过滤命中）；A股代码在英文社区命中低，如实返回 no-results。"""
@@ -359,3 +353,91 @@ def pulse_for_symbol(symbol: str) -> dict:
     else:
         q = base
     return social_pulse(q, symbol=s)
+
+
+# ------------------------------------------------------------------ 历史采集
+# 社媒数据没有长历史可回填，tilt 研究必须从"今天起"逐日积累。
+# 每日 cron 调 record_snapshots() 追加到 data/social_history.jsonl：
+#   {"date": "2026-08-31", "symbol": "NVDA", "heat": 34.2, "query": "NVDA",
+#    "items": 5, "source_status": {...}}
+
+
+def history_path():
+    from ..config import get_settings
+
+    return get_settings().data_dir / "social_history.jsonl"
+
+
+def record_snapshots(symbols: list[str], *, use_cache: bool = True) -> list[dict]:
+    """采集当日各标的 heat 快照，按 (date, symbol) 去重追加到 JSONL。
+
+    返回本次写入的记录列表（已存在的跳过，不重复写）。
+    """
+    today = datetime.now(timezone.utc).date().isoformat()
+    existing = _load_history()
+    done_keys = {(r.get("date"), r.get("symbol")) for r in existing}
+    written = []
+    path = history_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        for raw in symbols:
+            s = sym.normalize(raw)
+            if not s or (today, s) in done_keys:
+                continue
+            try:
+                pulse = pulse_for_symbol(s)
+            except Exception as exc:
+                log.warning("采集失败 %s: %s", s, exc)
+                continue
+            rec = {
+                "date": today,
+                "symbol": s,
+                "heat": pulse.get("heat"),
+                "heat_label": pulse.get("heat_label"),
+                "query": pulse.get("query"),
+                "items": len(pulse.get("items") or []),
+                "source_status": pulse.get("source_status") or {},
+            }
+            f.write(json_dumps(rec) + "\n")
+            written.append(rec)
+    return written
+
+
+def _load_history() -> list[dict]:
+    path = history_path()
+    if not path.is_file():
+        return []
+    out = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            out.append(json_loads(line))
+        except Exception:
+            continue
+    return out
+
+
+def heat_history(symbol: str) -> list[dict]:
+    """单标的按日期升序的历史 {date, heat}（仅含有效 heat）。"""
+    s = sym.normalize(symbol)
+    rows = [
+        {"date": r.get("date"), "heat": r.get("heat")}
+        for r in _load_history()
+        if r.get("symbol") == s and isinstance(r.get("heat"), (int, float))
+    ]
+    rows.sort(key=lambda x: x["date"] or "")
+    return rows
+
+
+def json_dumps(obj) -> str:
+    import json
+
+    return json.dumps(obj, ensure_ascii=False, default=str)
+
+
+def json_loads(s: str):
+    import json
+
+    return json.loads(s)

@@ -291,6 +291,40 @@ def social_pulse_route(
     return social_pulse(query, days=days)
 
 
+@app.post("/api/social/record", dependencies=[Depends(require_auth)])
+async def social_record_route(symbols: list[str] | None = None):
+    """采集当日 heat 快照（供定时任务/前端手动触发）。"""
+    from ..datasources.social import record_snapshots
+
+    if not symbols:
+        from ..datasources.news import load_watchlist
+        from ..tracks import all_track_stocks
+
+        wl = load_watchlist()
+        symbols = list(dict.fromkeys(
+            [str(t) for t in (wl.get("tickers") or [])]
+            + [s for tid in ("1-6t-optical", "liquid-cooling", "hbm", "ai-chip")
+               for s in all_track_stocks().get(tid, [])]
+        ))[:30]
+    written = record_snapshots([str(s) for s in symbols][:30])
+    return {"ok": True, "written": written}
+
+
+@app.get("/api/social/tilt/{symbol}", dependencies=[Depends(require_auth)])
+def social_tilt_route(symbol: str, min_days: int = 60):
+    """社媒 tilt（历史不足返回 404 + 说明，绝不给数）。"""
+    from ..quant.social_tilt import social_tilt
+
+    res = social_tilt(symbol, min_days=max(7, min(int(min_days), 365)))
+    if res is None:
+        raise HTTPException(
+            404,
+            f"{symbol}: 社媒历史不足 {min_days} 日，tilt 不可用——"
+            "请每日运行 investlab social-record 积累数据",
+        )
+    return res.to_dict()
+
+
 @app.get("/api/research/facts/{symbol}", dependencies=[Depends(require_auth)])
 def research_facts(symbol: str):
     return gather_facts(symbol, use_search=True)

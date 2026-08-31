@@ -350,6 +350,102 @@ def notify_test():
         console.print(f"{ok} {r.channel}: {r.detail}")
 
 
+@app.command()
+def factors():
+    """市场风格仪表：实证当前周期大小盘/动量/反转/波动哪种风格有效。"""
+    from investlab.quant.factor_watch import factor_watch
+
+    with console.status("拉取指数数据实证风格周期…"):
+        res = factor_watch()
+    table = Table(title=f"风格因子实证 · {res['date']} · 机制: {res['regime']}")
+    table.add_column("因子")
+    table.add_column("数值")
+    table.add_column("结论")
+    for st in res["styles"].values():
+        val = st.get("pct", st.get("value"))
+        unit = "%" if "pct" in st else ""
+        table.add_row(st["name"], f"{val}{unit}", st["verdict"])
+    console.print(table)
+    for s in res["suggestions"]:
+        console.print(f"[yellow]→[/] {s}")
+    _write_factor_report(res)
+
+
+def _write_factor_report(res: dict) -> str:
+    """风格实证 + 轮动建议写进 Obsidian「40 赛道研究」。"""
+    import json as _json
+
+    from investlab.obsidian.vault import new_vault
+
+    vault = new_vault()
+    rel = "40 赛道研究/量化风格观察.md"
+    body = [
+        "---",
+        "类型: 风格观察",
+        f"日期: {res['date']}",
+        "tags: [量化, 风格因子]",
+        "---",
+        f"# 量化风格观察 {res['date']}",
+        "",
+        f"**市场机制**：{res['regime']}",
+        "",
+        "## 实证结果",
+        "",
+        "| 因子 | 数值 | 结论 |",
+        "| --- | --- | --- |",
+    ]
+    for st in res["styles"].values():
+        val = st.get("pct", st.get("value"))
+        unit = "%" if "pct" in st else ""
+        body.append(f"| {st['name']} | {val}{unit} | {st['verdict']} |")
+    body += ["", "## 对我们信号引擎的适配建议", ""]
+    body += [f"- {s}" for s in res["suggestions"]] or ["- 当前无明显风格提示"]
+    body += [
+        "",
+        "## 原始数据",
+        "",
+        "```json",
+        _json.dumps(res["styles"], ensure_ascii=False, indent=1),
+        "```",
+    ]
+    vault.write_note(rel, "\n".join(body), overwrite=True)
+    console.print(f"[dim]已写入 Obsidian: {rel}[/]")
+    return rel
+
+
+@app.command()
+def rotation(
+    mode: str = typer.Option("signal", help="momentum | reversal | signal"),
+    top: int = typer.Option(5, min=2, max=15),
+    symbols: str = typer.Option("", help="逗号分隔标的池；留空=投研档案池(A/H)"),
+    days: int = typer.Option(500),
+):
+    """周频轮动回测：对标的池做朴素版量化选股（横截面打分+周频调仓）。"""
+    from investlab.quant.rotation import default_universe, rotation_backtest
+
+    if symbols.strip():
+        pool = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    else:
+        pool = default_universe()
+    console.print(f"标的池 {len(pool)} 只 · 模式 {mode} · Top{top}")
+    with console.status("拉取K线并回测（池大时约1-2分钟）…"):
+        res = rotation_backtest(pool, mode=mode, top_n=top, days=days)
+    if not res.get("ok"):
+        console.print(f"[red]{res.get('error')}[/]")
+        raise typer.Exit(1)
+    m, bm = res["metrics"], res["bench_metrics"]
+    table = Table(title=f"轮动回测 {res['start_date']} 起 · {res['weeks']}周 · {res['total_trades']}笔调仓")
+    for col in ("指标", "策略", "基准(池内等权)"):
+        table.add_column(col)
+    for k, label in (("total_return_pct", "总收益%"), ("cagr_pct", "年化%"),
+                     ("sharpe", "夏普"), ("max_drawdown_pct", "最大回撤%")):
+        table.add_row(label, str(m.get(k)), str(bm.get(k)))
+    console.print(table)
+    picks = res["latest_picks"]
+    console.print(f"[bold]最新持仓[/] ({picks['date']}): {'、'.join(picks['symbols'])}")
+    console.print("[dim]数据点有限的小池子结论仅作框架参考，非投资建议[/]")
+
+
 @report_app.command("ingest")
 def report_ingest(path: str):
     """PDF 入库（收进 data/reports/library/<hash>/）。"""
@@ -436,6 +532,55 @@ def pulse(
         table.add_row(it["source"], it["title"][:52],
                       f"{it['engagement']:,} {it['metric']}", it.get("created", ""))
     console.print(table)
+
+
+@app.command("social-record")
+def social_record(
+    symbols: str = typer.Option("", help="逗号分隔标的；留空则用持仓+赛道代表标的"),
+):
+    """采集当日社媒 heat 快照到历史库（建议每日 cron，供 tilt 研究积累数据）。"""
+    from investlab.datasources.social import record_snapshots
+
+    if symbols.strip():
+        watch = [s.strip() for s in symbols.split(",") if s.strip()]
+    else:
+        from investlab.datasources.news import load_watchlist
+        from investlab.tracks import all_track_stocks
+
+        wl = load_watchlist()
+        watch = list(dict.fromkeys(
+            [str(t) for t in (wl.get("tickers") or [])]
+            + [s for tid in ("1-6t-optical", "liquid-cooling", "hbm", "ai-chip")
+               for s in all_track_stocks().get(tid, [])]
+        ))
+    watch = watch[:30]
+    with console.status(f"采集 {len(watch)} 只标的…"):
+        written = record_snapshots(watch)
+    console.print(f"[green]写入 {len(written)} 条[/]（其余当日已存在或采集失败）")
+    for r in written[:10]:
+        console.print(f"  {r['symbol']}: heat={r['heat']} {r.get('heat_label', '')}")
+
+
+@app.command("social-tilt")
+def social_tilt_cmd(
+    symbol: str = typer.Argument(...),
+    min_days: int = typer.Option(60, min=7),
+):
+    """社媒热度 tilt（-1~+1）。历史不足 min_days 时明确拒绝。"""
+    from investlab.quant.social_tilt import social_tilt
+
+    res = social_tilt(symbol, min_days=min_days)
+    if res is None:
+        console.print(
+            f"[yellow]{symbol}: 历史不足 {min_days} 日，tilt 不可用。[/]\n"
+            "请先每天运行 investlab social-record 积累数据（建议 ≥60 日）。"
+        )
+        raise typer.Exit(1)
+    console.print(f"{res.symbol}: tilt=[bold]{res.tilt:+.3f}[/] "
+                  f"(heat={res.heat}, heat_z={res.heat_z}, slope_z={res.slope_z}, "
+                  f"覆盖{res.coverage_days}日{', 拥挤警示' if res.crowding else ''})")
+    for n in res.notes:
+        console.print(f"  [dim]{n}[/dim]")
 
 
 @app.command()
